@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrderStatus {
+  pending
+  fulfilled
+  cancelled
+  paid
+  failed
+}
+
+enum PaymentMethod {
+  razorpay
+  cod
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String?
+  role         UserRole @default(CUSTOMER)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  orders       Order[]
+
+  @@index([role])
+  @@map("AdminUser")
+}
+
+model SiteSettings {
+  id               String   @id
+  heroTagline      String?
+  heroTaglineEn    String?
+  missionStatement String?
+  featuredAuthorId String?
+  facebookUrl      String?
+  instagramUrl     String?
+  youtubeUrl       String?
+  linkedinUrl      String?
+  editorialEmail   String?
+  submissionsEmail String?
+  rightsEmail      String?
+  supportPhone     String?
+  whatsappPhone    String?
+  postalAddress    String?
+  featuredAuthor   Author?  @relation("FeaturedAuthor", fields: [featuredAuthorId], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Author {
+  id                 String        @id @default(cuid())
+  name               String
+  slug               String        @unique
+  bio                String?
+  photoUrl           String?
+  featured           Boolean       @default(false)
+  awards             AuthorAward[]
+  books              Book[]
+  posts              BlogPost[]
+  featuredInSettings SiteSettings[] @relation("FeaturedAuthor")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model AuthorAward {
+  id        String   @id @default(cuid())
+  authorId  String
+  label     String
+  position  Int      @default(0)
+  author    Author   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([authorId, position])
+}
+
+model Genre {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  books       BookGenre[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Book {
+  id              String      @id @default(cuid())
+  title           String
+  titleEn         String?
+  slug            String      @unique
+  authorId        String?
+  coverImageUrl   String?
+  synopsis        String?
+  pullQuote       String?
+  price           Float?
+  buyLink         String?
+  publicationDate String?
+  pageCount       Int?
+  isbn            String?
+  language        String?
+  featured        Boolean     @default(false)
+  chapterPreview  String?
+  averageRating   Float?
+  reviewCount     Int         @default(0)
+  author          Author?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  genres          BookGenre[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model BookGenre {
+  id        String   @id @default(cuid())
+  bookId    String
+  genreId   String
+  position  Int      @default(0)
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  genre     Genre    @relation(fields: [genreId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([bookId, genreId])
+  @@index([bookId, position])
+  @@index([genreId])
+}
+
+model BlogPost {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  category     String?
+  coverImageUrl String?
+  excerpt      String?
+  body         String?
+  publishedAt  String?
+  featured     Boolean  @default(false)
+  authorId     String?
+  author       Author?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ContactMessage {
+  id         String   @id @default(cuid())
+  fullName   String
+  email      String
+  department String
+  message    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ManuscriptSubmission {
+  id              String   @id @default(cuid())
+  fullName        String
+  email           String
+  phone           String
+  city            String
+  manuscriptTitle String
+  genre           String
+  wordCount       Int
+  language        String
+  synopsis        String
+  status          String   @default("new")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model NewsletterSubscriber {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Order {
+  id                 String        @id @default(cuid())
+  userId             String?
+  status             OrderStatus   @default(pending)
+  paymentMethod      PaymentMethod @default(razorpay)
+  paymentStatus      PaymentStatus @default(pending)
+  customerName       String
+  customerEmail      String
+  customerPhone      String
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  state              String
+  postalCode         String
+  country            String
+  subtotalAmount     Float
+  shippingAmount     Float         @default(0)
+  totalAmount        Float
+  razorpayOrderId    String?       @unique
+  razorpayPaymentId  String?       @unique
+  paidAt             DateTime?
+  paymentCollectedAt DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  user               User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items              OrderItem[]
+
+  @@index([userId])
+  @@index([customerEmail])
+  @@index([status, paymentStatus])
+}
+
+model OrderItem {
+  id           String @id @default(cuid())
+  orderId      String
+  bookId       String
+  bookSlug     String
+  bookTitle    String
+  bookAuthor   String
+  bookCoverUrl String?
+  quantity     Int
+  price        Float
+  order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
