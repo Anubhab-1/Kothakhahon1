@@ -42,6 +42,7 @@ export default function AddToCart({
   return (
     <button
       type="button"
+      suppressHydrationWarning
       onClick={() => {
         if (disabled) {
           return;
