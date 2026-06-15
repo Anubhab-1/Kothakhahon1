@@ -1,6 +1,11 @@
 import { Suspense } from "react";
 import BooksCatalogClient from "@/components/books/BooksCatalogClient";
 import { getAllBooks } from "@/lib/content";
+import {
+  getEffectiveStockStatus,
+  normalizeLowStockThreshold,
+  normalizeStockQuantity,
+} from "@/lib/inventory";
 import type { CatalogBook } from "@/lib/types";
 
 export const revalidate = 60;
@@ -15,6 +20,9 @@ function mapCatalogBook(book: Awaited<ReturnType<typeof getAllBooks>>[number]): 
     price: book.price,
     publicationDate: book.publicationDate,
     coverImageUrl: book.coverImageUrl,
+    stockQuantity: normalizeStockQuantity(book.stockQuantity),
+    lowStockThreshold: normalizeLowStockThreshold(book.lowStockThreshold),
+    stockStatus: getEffectiveStockStatus(book),
   };
 }
 

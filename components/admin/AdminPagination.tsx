@@ -44,7 +44,12 @@ export default function AdminPagination({
           key={page}
           href={hrefForPage(page)}
           aria-current={page === currentPage ? "page" : undefined}
-          className={`admin-link-button min-w-[3rem] ${page === currentPage ? "bg-[linear-gradient(135deg,var(--brass),#d4a95b)] text-ink" : ""}`}
+          className={`admin-link-button min-w-[3rem] ${page === currentPage ? "" : "admin-button-secondary"}`}
+          style={page === currentPage ? {
+            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            borderColor: "#6366f1",
+            color: "#fff",
+          } : {}}
         >
           {page}
         </Link>

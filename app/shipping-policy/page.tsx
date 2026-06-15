@@ -1,4 +1,8 @@
 import InfoPageShell from "@/components/site/InfoPageShell";
+import {
+  INDIA_FREE_SHIPPING_THRESHOLD,
+  INDIA_STANDARD_SHIPPING_AMOUNT,
+} from "@/lib/shipping";
 
 export const metadata = {
   title: "Shipping Policy",
@@ -16,6 +20,8 @@ export default function ShippingPolicyPage() {
           <ul className="mt-4 space-y-3 font-body text-sm text-stone">
             <li>Orders are packed after payment confirmation or COD acceptance.</li>
             <li>Cash on Delivery is available only on eligible India orders.</li>
+            <li>India orders below Rs. {INDIA_FREE_SHIPPING_THRESHOLD} carry a flat Rs. {INDIA_STANDARD_SHIPPING_AMOUNT} shipping fee.</li>
+            <li>India orders at or above Rs. {INDIA_FREE_SHIPPING_THRESHOLD} ship free.</li>
             <li>Delivery timelines vary by city, courier network, and holiday schedules.</li>
             <li>Incorrect addresses can delay dispatch or trigger re-shipping costs.</li>
           </ul>
@@ -31,10 +37,16 @@ export default function ShippingPolicyPage() {
       </article>
 
       <article className="fx-card rounded-[30px] border border-smoke bg-obsidian p-6 md:p-8">
+        <h2 className="text-safe font-title text-3xl text-ivory">Shipping Charges</h2>
+        <p className="mt-4 font-body text-base leading-relaxed text-parchment">
+          India orders below Rs. {INDIA_FREE_SHIPPING_THRESHOLD} are charged a flat Rs. {INDIA_STANDARD_SHIPPING_AMOUNT} shipping fee. Orders at or above Rs. {INDIA_FREE_SHIPPING_THRESHOLD} ship free within India.
+        </p>
+      </article>
+
+      <article className="fx-card rounded-[30px] border border-smoke bg-obsidian p-6 md:p-8">
         <h2 className="text-safe font-title text-3xl text-ivory">Shipping Scope</h2>
         <p className="mt-4 font-body text-base leading-relaxed text-parchment">
-          We currently prioritize shipping within India. If you need an international order, contact
-          the editorial desk before placing it so we can confirm availability and shipping feasibility.
+          Direct checkout currently supports India orders only. If you need an international order, contact the editorial desk before placing it so we can confirm availability and shipping feasibility manually.
         </p>
       </article>
 

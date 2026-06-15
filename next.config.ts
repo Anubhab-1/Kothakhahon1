@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "res.cloudinary.com",
       },
-      {
-        protocol: "http",
-        hostname: "localhost",
-      },
+      // Only allow localhost image src in development
+      ...(process.env.NODE_ENV !== "production"
+        ? [{ protocol: "http" as const, hostname: "localhost" }]
+        : []),
     ],
   },
 };

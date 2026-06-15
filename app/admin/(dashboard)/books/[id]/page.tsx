@@ -67,6 +67,8 @@ export default async function AdminBookDetailPage({
           synopsis: book.synopsis ?? "",
           pullQuote: book.pullQuote ?? "",
           price: book.price?.toString() ?? "",
+          stockQuantity: String(book.stockQuantity),
+          lowStockThreshold: String(book.lowStockThreshold),
           buyLink: book.buyLink ?? "",
           publicationDate: book.publicationDate ?? "",
           pageCount: book.pageCount?.toString() ?? "",

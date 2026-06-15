@@ -4,7 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatDisplayDate } from "@/lib/date";
 import { motion } from "@/components/ui/StaticMotion";
+import ShareButton from "@/components/ui/ShareButton";
 import type { BlogPostCardView, BlogPostDetailView } from "@/lib/types";
+import { getSiteUrlString } from "@/lib/env";
 
 interface BlogPostClientProps {
   post: BlogPostDetailView;
@@ -38,6 +40,13 @@ export default function BlogPostClient({ post, relatedPosts }: BlogPostClientPro
           <p className="mt-4 font-mono text-xs text-stone">
             {post.authorName} / {formatDisplayDate(post.publishedAt)}
           </p>
+          <div className="mt-5">
+            <ShareButton
+              title={post.title}
+              text={post.excerpt}
+              url={`${getSiteUrlString()}/blog/${post.slug}`}
+            />
+          </div>
         </div>
       </motion.header>
 

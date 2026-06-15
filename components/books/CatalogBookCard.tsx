@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CatalogBook } from "@/lib/types";
+import { getStockStatusLabel, isBookAvailableForSale } from "@/lib/inventory";
 import { formatINR } from "@/lib/utils";
 import TiltCard from "@/components/ui/TiltCard";
 import AddToCart from "@/components/ui/AddToCart";
@@ -13,6 +14,8 @@ interface CatalogBookCardProps {
 }
 
 export default function CatalogBookCard({ book }: CatalogBookCardProps) {
+  const isAvailable = isBookAvailableForSale(book);
+
   return (
     <TiltCard>
       <article
@@ -47,6 +50,9 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
           <div className="absolute left-2.5 top-2.5 rounded-full border border-gold/40 bg-void/80 px-2 py-1 font-ui text-[9px] tracking-[0.14em] text-gold sm:left-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
             BOOK
           </div>
+          <div className="absolute right-2.5 top-2.5 rounded-full border border-smoke bg-void/80 px-2 py-1 font-ui text-[9px] tracking-[0.14em] text-parchment sm:right-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
+            {getStockStatusLabel(book.stockStatus).toUpperCase()}
+          </div>
         </div>
 
         <div className="relative z-20 mt-3 space-y-1.5 sm:mt-4 sm:space-y-2">
@@ -78,6 +84,7 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
               price={book.price}
               authorName={book.authorName}
               coverImageUrl={book.coverImageUrl}
+              disabled={!isAvailable}
               label="ADD TO CART"
               addedLabel="ADDED TO CART"
               mobileLabel="ADD"

@@ -3,7 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
-const PRISMA_CACHE_SIGNATURE = "user-role-auth-v1";
+const PRISMA_CACHE_SIGNATURE = "email-jobs-v2";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -27,9 +27,10 @@ function createClient(pool: Pool) {
 function hasExpectedModels(client?: PrismaClient) {
   const candidate = client as PrismaClient & {
     user?: unknown;
+    emailJob?: unknown;
   };
 
-  return Boolean(candidate?.user);
+  return Boolean(candidate?.user && candidate?.emailJob);
 }
 
 const shouldReuseClient =

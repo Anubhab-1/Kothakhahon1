@@ -16,6 +16,8 @@ interface AddToCartProps {
   mobileLabel?: string;
   mobileAddedLabel?: string;
   className?: string;
+  disabled?: boolean;
+  disabledLabel?: string;
 }
 
 export default function AddToCart({
@@ -29,6 +31,8 @@ export default function AddToCart({
   mobileLabel,
   mobileAddedLabel,
   className,
+  disabled = false,
+  disabledLabel = "OUT OF STOCK",
 }: AddToCartProps) {
   const { addItem, openDrawer } = useCart();
   const [added, setAdded] = useState(false);
@@ -39,6 +43,10 @@ export default function AddToCart({
     <button
       type="button"
       onClick={() => {
+        if (disabled) {
+          return;
+        }
+
         addItem(
           {
             bookId,
@@ -53,17 +61,25 @@ export default function AddToCart({
         openDrawer();
         setTimeout(() => setAdded(false), 1000);
       }}
+      disabled={disabled}
+      aria-disabled={disabled}
       className={cn(
         "fx-button inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full border px-6 py-3 font-ui text-xs tracking-[0.14em] transition-all duration-300",
-        added
+        disabled
+          ? "cursor-not-allowed border-smoke bg-obsidian text-stone shadow-none"
+          : added
           ? "border-ivory bg-ivory text-void shadow-[0_10px_24px_rgba(250,246,239,0.26)]"
           : "border-gold bg-gold text-void shadow-[0_10px_24px_rgba(201,151,58,0.26)] hover:border-gold-dim hover:bg-gold-dim",
         className,
       )}
     >
       <ShoppingBag className="h-4 w-4" />
-      <span className="sm:hidden">{added ? compactAddedLabel : compactLabel}</span>
-      <span className="hidden sm:inline">{added ? addedLabel : label}</span>
+      <span className="sm:hidden">
+        {disabled ? disabledLabel : added ? compactAddedLabel : compactLabel}
+      </span>
+      <span className="hidden sm:inline">
+        {disabled ? disabledLabel : added ? addedLabel : label}
+      </span>
     </button>
   );
 }

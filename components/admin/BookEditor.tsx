@@ -17,6 +17,8 @@ export interface BookEditorData {
   synopsis: string;
   pullQuote: string;
   price: string;
+  stockQuantity: string;
+  lowStockThreshold: string;
   buyLink: string;
   publicationDate: string;
   pageCount: string;
@@ -78,6 +80,29 @@ export default function BookEditor({
           <label className="block space-y-2">
             <span className="admin-field-label">Publication Date</span>
             <input name="publicationDate" type="date" className="admin-input" defaultValue={book?.publicationDate ?? ""} />
+          </label>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="block space-y-2">
+            <span className="admin-field-label">Stock Quantity</span>
+            <input
+              name="stockQuantity"
+              type="number"
+              min="0"
+              className="admin-input"
+              defaultValue={book?.stockQuantity ?? "12"}
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="admin-field-label">Low-Stock Threshold</span>
+            <input
+              name="lowStockThreshold"
+              type="number"
+              min="0"
+              className="admin-input"
+              defaultValue={book?.lowStockThreshold ?? "3"}
+            />
           </label>
         </div>
 
@@ -170,6 +195,7 @@ export default function BookEditor({
         <ul className="space-y-3 font-body text-base leading-relaxed text-ink/70">
           <li>Genres can be freeform. The system normalizes them into reusable tags.</li>
           <li>Cover images should read clearly at thumbnail size before they are judged at full size.</li>
+          <li>Stock status is now derived from quantity and the low-stock threshold.</li>
           <li>Keep chapter previews clean and well broken into paragraphs for the reader-facing modal.</li>
         </ul>
       </aside>

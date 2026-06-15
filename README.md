@@ -10,9 +10,7 @@ Current production direction:
 - shared login with reader accounts plus admin role access
 - custom internal admin dashboard at `/admin`
 
-See `PRODUCTION_REBUILD_PLAN.md` for the full rollout sequence.
-See `PRODUCTION_KEYS_SETUP.md` for the exact env and dashboard setup.
-See `PRE_HOSTING_CHECKLIST.md` for the final launch smoke checks.
+See `PRODUCTION_READY_PLAN.md` for the single production roadmap we will implement.
 
 ## Tech Stack
 - Next.js 16
@@ -46,6 +44,7 @@ Required vars:
 - `RAZORPAY_KEY_ID`
 - `RAZORPAY_KEY_SECRET`
 - `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+- `RAZORPAY_WEBHOOK_SECRET`
 
 Production-only next vars:
 - `CLOUDINARY_CLOUD_NAME`
@@ -54,6 +53,7 @@ Production-only next vars:
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `ADMIN_NOTIFICATION_EMAIL` (optional but recommended)
+- `EMAIL_JOB_SECRET` (recommended for the protected email job processor route)
 
 ### 4. Apply local database schema
 ```bash
@@ -84,6 +84,8 @@ Admin accounts are redirected to `/admin`, and reader accounts are redirected to
 - Local development now runs against the repo-local PostgreSQL instance on port `54329` by default.
 - Before launch, move `DATABASE_URL` to Neon or another managed Postgres instance and set the real production domain.
 - Admin pages are marked `noindex` and now ship with basic security headers through `proxy.ts`.
+- Transactional emails now enqueue into the `EmailJob` table and are processed after the response, with retries available through the protected `GET/POST /api/internal/email-jobs/process` route.
+- In production, call that route from cron or an uptime worker with `Authorization: Bearer $EMAIL_JOB_SECRET` so failed email jobs continue draining even when the site is quiet.
 
 ## Scripts
 - `npm run dev`

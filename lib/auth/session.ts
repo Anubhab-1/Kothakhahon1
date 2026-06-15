@@ -70,7 +70,10 @@ function buildLoginRedirect(target?: string) {
     return "/login";
   }
 
-  return `/login?next=${encodeURIComponent(target)}`;
+  // Only allow relative paths starting with / to prevent open redirect
+  // e.g. reject ?next=https://evil.com or ?next=//evil.com
+  const sanitized = target.startsWith("/") && !target.startsWith("//") ? target : "/login";
+  return `/login?next=${encodeURIComponent(sanitized)}`;
 }
 
 export async function createSession(user: {

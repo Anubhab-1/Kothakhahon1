@@ -28,7 +28,18 @@ interface AdminOrdersPageProps {
   }>;
 }
 
-const orderStatuses: Array<OrderStatus | "all"> = ["all", "pending", "fulfilled", "cancelled"];
+const orderStatuses: Array<OrderStatus | "all"> = [
+  "all",
+  "pending",
+  "payment_pending",
+  "paid",
+  "processing",
+  "packed",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "refunded",
+];
 const paymentStatuses: Array<PaymentStatus | "all"> = ["all", "pending", "paid", "failed", "refunded"];
 const paymentMethods: Array<PaymentMethod | "all"> = ["all", "cod", "razorpay"];
 
@@ -100,8 +111,8 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
             <p className="admin-eyebrow">Filters</p>
             <h2 className="mt-2 font-title text-3xl text-ink">Search the order ledger</h2>
           </div>
-          <span className="rounded-full border border-ink/10 bg-white/70 px-4 py-2 font-ui text-[11px] tracking-[0.14em] text-ink/70">
-            {totalCount} MATCHING ORDERS
+          <span style={{ display:"inline-flex", alignItems:"center", borderRadius:"999px", border:"1px solid rgba(99,102,241,0.2)", background:"rgba(99,102,241,0.08)", padding:"0.25rem 0.85rem", fontSize:"0.68rem", fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#a5b4fc" }}>
+            {totalCount} matching orders
           </span>
         </div>
 
@@ -140,7 +151,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
         </form>
       </section>
 
-      <div className="overflow-hidden rounded-[28px] border border-ink/10 bg-white shadow-[0_18px_38px_rgba(54,44,32,0.06)]">
+      <div style={{ overflow:"hidden", borderRadius:"20px", border:"1px solid rgba(99,102,241,0.12)", background:"linear-gradient(135deg,#181c27,#1e2233)", boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
         <table className="admin-table">
           <thead>
             <tr>
@@ -158,11 +169,11 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
               orders.map((order) => (
                 <tr key={order.id}>
                   <td>
-                    <Link href={`/admin/orders/${order.id}`} className="font-medium text-ink transition hover:text-brass">
+                    <Link href={`/admin/orders/${order.id}`} style={{ fontWeight:600, color:"#a5b4fc", textDecoration:"none", transition:"color 180ms ease" }}>
                       {order.customerName}
                     </Link>
-                    <div className="text-sm text-ink/58">{order.customerEmail}</div>
-                    <div className="text-xs text-ink/46">{order.id}</div>
+                    <div style={{ fontSize:"0.78rem", color:"#64748b", marginTop:"2px" }}>{order.customerEmail}</div>
+                    <div style={{ fontSize:"0.7rem", color:"#475569", marginTop:"1px" }}>{order.id}</div>
                   </td>
                   <td>{getPaymentMethodLabel(order.paymentMethod)}</td>
                   <td>
@@ -172,7 +183,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                     <span className="admin-status-pill">{getPaymentStatusLabel(order.paymentStatus)}</span>
                   </td>
                   <td>{order.items.length}</td>
-                  <td>Rs. {order.totalAmount.toFixed(2)}</td>
+                  <td style={{ fontWeight:600, fontVariantNumeric:"tabular-nums" }}>₹ {order.totalAmount.toFixed(2)}</td>
                   <td>{order.createdAt.toLocaleDateString("en-IN")}</td>
                 </tr>
               ))

@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminPagination from "@/components/admin/AdminPagination";
+import AdminSubmitButton from "@/components/admin/AdminSubmitButton";
 import { db } from "@/lib/db";
 import {
   buildAdminListHref,
@@ -8,6 +9,7 @@ import {
   normalizeSearchTerm,
   parsePageParam,
 } from "@/lib/admin-list";
+import { sendNewsletterBroadcastAction } from "./actions";
 
 interface AdminNewsletterPageProps {
   searchParams: Promise<{
@@ -48,6 +50,31 @@ export default async function AdminNewsletterPage({ searchParams }: AdminNewslet
         title="Subscriber List"
         description="A simple export-friendly list for launch-stage email collection."
       />
+
+      {/* Broadcast compose */}
+      <div className="admin-card space-y-4">
+        <p className="admin-eyebrow">Send Broadcast</p>
+        <p style={{ fontSize: "13px", color: "#64748b" }}>
+          Sends to all <strong style={{ color: "#94a3b8" }}>{await db.newsletterSubscriber.count({ where: { isActive: true } })}</strong> active subscribers.
+        </p>
+        <form action={sendNewsletterBroadcastAction} className="space-y-4">
+          <label className="block space-y-1.5">
+            <span className="admin-field-label">Subject</span>
+            <input name="subject" required placeholder="e.g. New arrivals this season" className="admin-input" />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="admin-field-label">Message Body</span>
+            <textarea
+              name="body"
+              required
+              rows={6}
+              placeholder="Write your message here. Use plain text — it will be displayed as-is inside our branded email template."
+              className="admin-input resize-y"
+            />
+          </label>
+          <AdminSubmitButton idleLabel="Send to All Subscribers" pendingLabel="Sending…" />
+        </form>
+      </div>
 
       <div className="admin-card space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

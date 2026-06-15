@@ -30,6 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .devserver.log
+.codex-dev-server.log
+.codex-dev-server.err.log
+.codex-postgres.log
+.codex-postgres.err.log
 .start-prod.log
 .startserver.log
 .startserver-*.log

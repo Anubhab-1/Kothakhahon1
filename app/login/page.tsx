@@ -158,6 +158,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     autoComplete="email"
                     className={styles.inputField}
                     placeholder="you@example.com"
+                    suppressHydrationWarning
                   />
                 </span>
               </label>
@@ -173,9 +174,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     autoComplete="current-password"
                     className={styles.inputField}
                     placeholder="Enter your password"
+                    suppressHydrationWarning
                   />
                 </span>
               </label>
+
+              <div className="flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="font-ui text-[11px] tracking-[0.14em] text-stone transition hover:text-gold"
+                >
+                  FORGOT PASSWORD?
+                </Link>
+              </div>
 
               <div className="flex items-start gap-3 rounded-[1.2rem] border border-smoke/80 bg-white/4 px-4 py-3 text-sm text-stone backdrop-blur">
                 <ShieldCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-gold" />

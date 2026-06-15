@@ -18,6 +18,7 @@ export default function AuthSubmitButton({
     <button
       type="submit"
       disabled={pending}
+      suppressHydrationWarning
       className={cn(
         "fx-button inline-flex items-center justify-center rounded-full border border-gold bg-gold px-6 py-3 font-ui text-xs tracking-[0.16em] text-void transition hover:bg-gold-dim disabled:cursor-not-allowed disabled:opacity-70",
         className,

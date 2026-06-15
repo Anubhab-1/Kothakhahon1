@@ -1,3 +1,5 @@
+import type { StockStatus } from "@/generated/prisma/client";
+
 export type Json =
   | string
   | number
@@ -57,6 +59,9 @@ export interface Book {
   chapterPreview?: string;
   averageRating?: number;
   reviewCount?: number;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  stockStatus?: StockStatus;
 }
 
 export interface CatalogBook {
@@ -68,6 +73,9 @@ export interface CatalogBook {
   price?: number;
   publicationDate?: string;
   coverImageUrl?: string;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockStatus: StockStatus;
 }
 
 export interface RelatedBook {
@@ -108,6 +116,9 @@ export interface BookDetailView {
   language?: string;
   averageRating: number;
   reviewCount: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  stockStatus: StockStatus;
 }
 
 export interface BlogPost {
@@ -185,7 +196,16 @@ export interface SqlUser {
 export interface Order {
   id: string;
   user_id: string;
-  status: "pending" | "paid" | "shipped" | "delivered" | "cancelled";
+  status:
+    | "pending"
+    | "payment_pending"
+    | "paid"
+    | "processing"
+    | "packed"
+    | "shipped"
+    | "delivered"
+    | "cancelled"
+    | "refunded";
   total_amount: number;
   razorpay_order_id?: string;
   razorpay_payment_id?: string;

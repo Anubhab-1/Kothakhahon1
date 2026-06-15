@@ -10,14 +10,22 @@ export function getPaymentMethodShortLabel(method: PaymentMethod) {
 
 export function getOrderStatusLabel(status: OrderStatus) {
   switch (status) {
-    case "fulfilled":
-      return "Fulfilled";
+    case "payment_pending":
+      return "Payment pending";
+    case "paid":
+      return "Paid";
+    case "processing":
+      return "Processing";
+    case "packed":
+      return "Packed";
+    case "shipped":
+      return "Shipped";
+    case "delivered":
+      return "Delivered";
     case "cancelled":
       return "Cancelled";
-    case "paid":
-      return "Legacy paid";
-    case "failed":
-      return "Legacy failed";
+    case "refunded":
+      return "Refunded";
     case "pending":
     default:
       return "Pending";
@@ -26,14 +34,22 @@ export function getOrderStatusLabel(status: OrderStatus) {
 
 export function getOrderStatusShortLabel(status: OrderStatus) {
   switch (status) {
-    case "fulfilled":
-      return "FULFILLED";
-    case "cancelled":
-      return "CANCELLED";
+    case "payment_pending":
+      return "PAYMENT PENDING";
     case "paid":
       return "PAID";
-    case "failed":
-      return "FAILED";
+    case "processing":
+      return "PROCESSING";
+    case "packed":
+      return "PACKED";
+    case "shipped":
+      return "SHIPPED";
+    case "delivered":
+      return "DELIVERED";
+    case "cancelled":
+      return "CANCELLED";
+    case "refunded":
+      return "REFUNDED";
     case "pending":
     default:
       return "PENDING";

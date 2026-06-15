@@ -1,5 +1,18 @@
 import Link from "next/link";
-import { Inbox, LibraryBig, Newspaper, PackageOpen } from "lucide-react";
+import {
+  BookOpen,
+  LayoutDashboard,
+  Users,
+  FileText,
+  ShoppingBag,
+  Mail,
+  ScrollText,
+  Send,
+  Settings,
+  LogOut,
+  Zap,
+  Shield,
+} from "lucide-react";
 import { logoutAdminAction } from "@/app/admin/actions";
 import AdminSidebarNav from "@/components/admin/AdminSidebarNav";
 
@@ -13,70 +26,284 @@ export default function AdminShell({
     fullName?: string;
   };
 }) {
+  const initials = (session.fullName ?? session.email)
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="admin-theme min-h-screen">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1600px] lg:grid-cols-[290px_1fr]">
-        <aside className="border-b border-ink/10 bg-[linear-gradient(180deg,rgba(255,253,249,0.95),rgba(249,242,231,0.96))] p-6 lg:border-b-0 lg:border-r">
-          <Link href="/admin" className="block rounded-[26px] border border-ink/10 bg-paper px-5 py-5 shadow-[0_18px_40px_rgba(54,44,32,0.08)]">
-            <p className="admin-eyebrow">Kothakhahon Admin</p>
-            <h1 className="mt-2 font-title text-4xl text-ink">Editorial Desk</h1>
-            <p className="mt-3 font-body text-base leading-relaxed text-ink/68">
-              A custom workspace for catalog, publishing, submissions, and order operations.
+      <div
+        className="mx-auto grid min-h-screen w-full max-w-[1700px]"
+        style={{ gridTemplateColumns: "270px 1fr" }}
+      >
+        {/* ── Sidebar ── */}
+        <aside
+          style={{
+            background:
+              "linear-gradient(180deg, #0c0e16 0%, #0f1120 60%, #0c0e16 100%)",
+            borderRight: "1px solid rgba(99,102,241,0.1)",
+          }}
+          className="flex flex-col min-h-screen p-5 gap-0"
+        >
+          {/* Brand block */}
+          <Link
+            href="/admin"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.10) 100%)",
+              border: "1px solid rgba(99,102,241,0.22)",
+              borderRadius: "18px",
+              boxShadow: "0 8px 32px rgba(99,102,241,0.12)",
+            }}
+            className="block p-5 transition-all duration-300 hover:border-indigo-400/40 hover:shadow-[0_12px_40px_rgba(99,102,241,0.22)]"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                style={{
+                  background:
+                    "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                  borderRadius: "10px",
+                  padding: "7px",
+                  boxShadow: "0 4px 12px rgba(99,102,241,0.4)",
+                }}
+              >
+                <BookOpen className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p
+                  style={{
+                    fontSize: "0.58rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.2em",
+                    textTransform: "uppercase",
+                    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  Kothakhahon
+                </p>
+                <p
+                  style={{
+                    fontSize: "1.05rem",
+                    fontWeight: 700,
+                    color: "#f0f2ff",
+                    letterSpacing: "-0.01em",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Admin Console
+                </p>
+              </div>
+            </div>
+            <p
+              style={{
+                fontSize: "0.775rem",
+                color: "#64748b",
+                lineHeight: 1.5,
+              }}
+            >
+              Catalog · Publishing · Orders · Inbox
             </p>
           </Link>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-1">
-            <div className="admin-mini-card">
-              <LibraryBig className="h-4 w-4 text-brass" />
-              <span>Catalog control</span>
-            </div>
-            <div className="admin-mini-card">
-              <Newspaper className="h-4 w-4 text-brass" />
-              <span>Journal editing</span>
-            </div>
-            <div className="admin-mini-card">
-              <Inbox className="h-4 w-4 text-brass" />
-              <span>Inbox triage</span>
-            </div>
-            <div className="admin-mini-card">
-              <PackageOpen className="h-4 w-4 text-brass" />
-              <span>Order tracking</span>
-            </div>
+          {/* Feature pills */}
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            {[
+              { icon: BookOpen, label: "Catalog" },
+              { icon: FileText, label: "Journal" },
+              { icon: Mail, label: "Inbox" },
+              { icon: ShoppingBag, label: "Orders" },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} className="admin-mini-card">
+                <Icon
+                  style={{ width: 14, height: 14, color: "#6366f1", flexShrink: 0 }}
+                />
+                <span style={{ fontSize: "0.78rem" }}>{label}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="mt-8">
-            <p className="admin-eyebrow mb-3">Navigation</p>
+          {/* Navigation */}
+          <div className="mt-7 flex-1">
+            <p
+              style={{
+                fontSize: "0.6rem",
+                fontWeight: 700,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "#3d4460",
+                marginBottom: "0.6rem",
+                paddingLeft: "0.25rem",
+              }}
+            >
+              Navigation
+            </p>
             <AdminSidebarNav />
+          </div>
+
+          {/* Version badge */}
+          <div
+            style={{
+              marginTop: "auto",
+              paddingTop: "1.25rem",
+              borderTop: "1px solid rgba(255,255,255,0.04)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem 0.75rem",
+                borderRadius: "10px",
+                background: "rgba(99,102,241,0.05)",
+                border: "1px solid rgba(99,102,241,0.08)",
+              }}
+            >
+              <Shield style={{ width: 13, height: 13, color: "#6366f1" }} />
+              <span style={{ fontSize: "0.7rem", color: "#3d4460", fontWeight: 600 }}>
+                Internal Workspace
+              </span>
+            </div>
           </div>
         </aside>
 
-        <div className="min-w-0">
-          <header className="sticky top-0 z-30 border-b border-ink/10 bg-paper/88 px-5 py-4 backdrop-blur md:px-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="admin-eyebrow">Internal Workspace</p>
-                <p className="mt-1 font-body text-base text-ink/72">
-                  Manage the storefront without a third-party CMS or scattered backend tools.
-                </p>
+        {/* ── Main content ── */}
+        <div className="min-w-0 flex flex-col">
+          {/* Top bar */}
+          <header
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 30,
+              background: "rgba(13,15,20,0.82)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              borderBottom: "1px solid rgba(99,102,241,0.1)",
+              padding: "0.875rem 2rem",
+              boxShadow: "0 1px 0 rgba(99,102,241,0.06)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#10b981",
+                    boxShadow: "0 0 8px #10b981",
+                    flexShrink: 0,
+                  }}
+                />
+                <div>
+                  <p
+                    style={{
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.15em",
+                      textTransform: "uppercase",
+                      color: "#3d4460",
+                    }}
+                  >
+                    Internal Workspace
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "0.825rem",
+                      color: "#64748b",
+                      marginTop: "1px",
+                    }}
+                  >
+                    Manage storefront without scattered backend tools
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="rounded-full border border-ink/10 bg-white px-4 py-2 text-right shadow-[0_10px_24px_rgba(54,44,32,0.06)]">
-                  <p className="font-ui text-[11px] tracking-[0.16em] text-brass">
-                    {(session.fullName ?? "ADMIN").toUpperCase()}
-                  </p>
-                  <p className="font-body text-sm text-ink/68">{session.email}</p>
+                {/* User badge */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    padding: "0.45rem 0.9rem 0.45rem 0.45rem",
+                    borderRadius: "999px",
+                    background: "rgba(99,102,241,0.08)",
+                    border: "1px solid rgba(99,102,241,0.16)",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.68rem",
+                      fontWeight: 800,
+                      color: "#fff",
+                      letterSpacing: "0.04em",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {initials}
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        color: "#a5b4fc",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {session.fullName ?? "Admin"}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "0.68rem",
+                        color: "#64748b",
+                      }}
+                    >
+                      {session.email}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Log out */}
                 <form action={logoutAdminAction}>
-                  <button type="submit" className="admin-button admin-button-secondary">
-                    Log Out
+                  <button
+                    type="submit"
+                    className="admin-button admin-button-secondary"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      fontSize: "0.8rem",
+                      padding: "0.5rem 0.9rem",
+                    }}
+                  >
+                    <LogOut style={{ width: 14, height: 14 }} />
+                    Sign out
                   </button>
                 </form>
               </div>
             </div>
           </header>
 
-          <div className="px-5 py-8 md:px-8">{children}</div>
+          {/* Page content */}
+          <div
+            style={{ padding: "2rem 2.5rem", flex: 1 }}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>

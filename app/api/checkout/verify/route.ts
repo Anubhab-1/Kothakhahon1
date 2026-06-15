@@ -1,9 +1,12 @@
-import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { sendPaidOrderEmails } from "@/lib/email";
 import { env } from "@/lib/env";
+import { queuePaidOrderEmails, runEmailJobsAfterResponse } from "@/lib/email-jobs";
+import {
+  finalizePaidRazorpayOrder,
+  isRazorpayCheckoutSignatureValid,
+  PaymentProcessingError,
+} from "@/lib/payments";
 
 const verifySchema = z.object({
   orderId: z.string().min(1),
@@ -11,17 +14,6 @@ const verifySchema = z.object({
   razorpayPaymentId: z.string().min(1),
   razorpaySignature: z.string().min(1),
 });
-
-function getExpectedSignature(
-  razorpayOrderId: string,
-  razorpayPaymentId: string,
-  razorpaySecret: string,
-) {
-  return crypto
-    .createHmac("sha256", razorpaySecret)
-    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-    .digest("hex");
-}
 
 export async function POST(request: Request) {
   let payload: z.infer<typeof verifySchema>;
@@ -34,64 +26,45 @@ export async function POST(request: Request) {
     );
   }
 
-  const order = await db.order.findUnique({
-    where: { id: payload.orderId },
-    select: {
-      id: true,
-      status: true,
-      paymentMethod: true,
-      paymentStatus: true,
-      razorpayOrderId: true,
-    },
-  });
-
-  if (!order) {
-    return NextResponse.json({ error: "Order not found." }, { status: 404 });
-  }
-
-  if (order.status === "cancelled") {
-    return NextResponse.json({ error: "Order is cancelled." }, { status: 400 });
-  }
-
-  if (order.paymentMethod !== "razorpay") {
-    return NextResponse.json({ error: "This order does not use Razorpay." }, { status: 400 });
-  }
-
   const razorpaySecret = env.RAZORPAY_KEY_SECRET;
   if (!razorpaySecret) {
     return NextResponse.json({ error: "Razorpay is not configured." }, { status: 503 });
   }
 
-  const expectedSignature = getExpectedSignature(
-    payload.razorpayOrderId,
-    payload.razorpayPaymentId,
+  const isValid = isRazorpayCheckoutSignatureValid({
+    razorpayOrderId: payload.razorpayOrderId,
+    razorpayPaymentId: payload.razorpayPaymentId,
+    razorpaySignature: payload.razorpaySignature,
     razorpaySecret,
-  );
+  });
 
-  if (expectedSignature !== payload.razorpaySignature) {
+  if (!isValid) {
     return NextResponse.json({ error: "Payment signature verification failed." }, { status: 400 });
   }
 
-  if (!order.razorpayOrderId || order.razorpayOrderId !== payload.razorpayOrderId) {
-    return NextResponse.json({ error: "Order identifier mismatch." }, { status: 400 });
-  }
-
-  if (order.paymentStatus !== "paid") {
-    const paidOrder = await db.order.update({
-      where: { id: payload.orderId },
-      data: {
-        status: order.status === "fulfilled" ? "fulfilled" : "pending",
-        paymentStatus: "paid",
-        razorpayPaymentId: payload.razorpayPaymentId,
-        paidAt: new Date(),
-        paymentCollectedAt: new Date(),
-      },
-      include: {
-        items: true,
-      },
+  try {
+    const result = await finalizePaidRazorpayOrder({
+      localOrderId: payload.orderId,
+      razorpayOrderId: payload.razorpayOrderId,
+      razorpayPaymentId: payload.razorpayPaymentId,
     });
 
-    await sendPaidOrderEmails(paidOrder);
+    if (result.outcome === "paid") {
+      try {
+        await queuePaidOrderEmails(result.order.id);
+        runEmailJobsAfterResponse();
+      } catch (error) {
+        console.error(
+          error instanceof Error ? error.message : "Paid order email job enqueue failed.",
+        );
+      }
+    }
+  } catch (error) {
+    if (error instanceof PaymentProcessingError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+
+    throw error;
   }
 
   return NextResponse.json({ success: true });

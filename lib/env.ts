@@ -16,12 +16,14 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
   ADMIN_NOTIFICATION_EMAIL: z.string().optional(),
+  EMAIL_JOB_SECRET: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse({
@@ -32,12 +34,14 @@ const parsedEnv = envSchema.parse({
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
   NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+  RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   ADMIN_NOTIFICATION_EMAIL: process.env.ADMIN_NOTIFICATION_EMAIL,
+  EMAIL_JOB_SECRET: process.env.EMAIL_JOB_SECRET,
 });
 
 function normalizeSiteUrl(value: string) {
@@ -120,15 +124,20 @@ export function getLaunchReadiness() {
   });
 
   const razorpayReady = Boolean(
-    env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    env.RAZORPAY_KEY_ID &&
+      env.RAZORPAY_KEY_SECRET &&
+      env.NEXT_PUBLIC_RAZORPAY_KEY_ID &&
+      env.RAZORPAY_WEBHOOK_SECRET,
   );
   items.push({
     key: "razorpay",
     label: "Razorpay",
     status: razorpayReady ? "ready" : "warning",
     detail: razorpayReady
-      ? "Server and public Razorpay keys are configured."
-      : "Razorpay keys are incomplete. Online payments are unavailable, but cash on delivery can still operate.",
+      ? "Server keys, public key, and webhook secret are configured."
+      : env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+        ? "Razorpay checkout keys are configured, but RAZORPAY_WEBHOOK_SECRET is still missing."
+        : "Razorpay keys are incomplete. Online payments are unavailable, but cash on delivery can still operate.",
   });
 
   const cloudinaryReady = Boolean(
@@ -145,6 +154,7 @@ export function getLaunchReadiness() {
   });
 
   const resendReady = Boolean(env.RESEND_API_KEY && env.RESEND_FROM_EMAIL);
+  const emailJobsReady = process.env.NODE_ENV !== "production" || Boolean(env.EMAIL_JOB_SECRET);
 
   items.push({
     key: "resend",
@@ -155,6 +165,17 @@ export function getLaunchReadiness() {
       : env.RESEND_API_KEY
         ? "Resend API key exists, but RESEND_FROM_EMAIL is still missing. Production email sends need a verified sender address."
       : "Resend is not configured yet. Order and inbox notifications are still local-only.",
+  });
+
+  items.push({
+    key: "email-jobs",
+    label: "Email Job Worker",
+    status: emailJobsReady ? "ready" : "warning",
+    detail: emailJobsReady
+      ? process.env.NODE_ENV === "production"
+        ? "Protected email job processor secret is configured."
+        : "Local development can process queued email jobs without an extra shared secret."
+      : "EMAIL_JOB_SECRET is missing. Configure it before exposing the background email processor in production.",
   });
 
   return items;

@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import BookDetailClient from "@/components/books/BookDetailClient";
 import { getAllBooks, getBookBySlug, getRelatedBooks } from "@/lib/content";
+import {
+  getEffectiveStockStatus,
+  normalizeLowStockThreshold,
+  normalizeStockQuantity,
+} from "@/lib/inventory";
+import { getSession } from "@/lib/auth/session";
+import { db } from "@/lib/db";
 import type { BookDetailView, RelatedBook } from "@/lib/types";
 
 interface BookDetailPageProps {
@@ -15,6 +22,8 @@ export const revalidate = 60;
 function mapBookToDetail(book: NonNullable<Awaited<ReturnType<typeof getBookBySlug>>>): BookDetailView {
   const mappedGenres = (book.genre ?? []).map((genre) => genre.name).filter(Boolean);
   const reviewCount = book.reviewCount ?? 0;
+  const stockQuantity = normalizeStockQuantity(book.stockQuantity);
+  const lowStockThreshold = normalizeLowStockThreshold(book.lowStockThreshold);
 
   return {
     id: book._id,
@@ -41,6 +50,9 @@ function mapBookToDetail(book: NonNullable<Awaited<ReturnType<typeof getBookBySl
     language: book.language,
     averageRating: reviewCount > 0 ? (book.averageRating ?? 4.5) : 0,
     reviewCount,
+    stockQuantity,
+    lowStockThreshold,
+    stockStatus: getEffectiveStockStatus(book),
   };
 }
 
@@ -60,29 +72,70 @@ export async function generateStaticParams() {
   return books.map((book) => ({ slug: book.slug }));
 }
 
-async function getBookData(slug: string) {
+async function getBookData(slug: string, userId?: string) {
   const book = await getBookBySlug(slug);
   if (!book) {
     return null;
   }
 
-  const relatedBooks = await getRelatedBooks(slug, book.author?._id ?? "");
+  const [relatedBooks, wishlistItem, approvedReviews, userReview] = await Promise.all([
+    getRelatedBooks(slug, book.author?._id ?? ""),
+    userId
+      ? db.wishlistItem.findUnique({
+          where: { userId_bookId: { userId, bookId: book._id } },
+          select: { id: true },
+        })
+      : null,
+    db.review.findMany({
+      where: { bookId: book._id, approved: true },
+      select: {
+        id: true,
+        reviewerName: true,
+        rating: true,
+        title: true,
+        body: true,
+        purchaseVerified: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    userId
+      ? db.review.findUnique({
+          where: { userId_bookId: { userId, bookId: book._id } },
+          select: { id: true },
+        })
+      : null,
+  ]);
 
   return {
     book: mapBookToDetail(book),
     related: relatedBooks.slice(0, 6).map(mapRelatedBook),
+    isSaved: !!wishlistItem,
+    reviews: approvedReviews,
+    hasReviewed: !!userReview,
   };
 }
 
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const { slug } = await params;
-  const bookData = await getBookData(slug);
+  const session = await getSession();
+  const bookData = await getBookData(slug, session?.userId);
 
   if (!bookData) {
     notFound();
   }
 
-  return <BookDetailClient book={bookData.book} relatedBooks={bookData.related} />;
+  return (
+    <BookDetailClient
+      book={bookData.book}
+      relatedBooks={bookData.related}
+      isSaved={bookData.isSaved}
+      isLoggedIn={!!session}
+      reviews={bookData.reviews}
+      hasReviewed={bookData.hasReviewed}
+    />
+  );
 }
 
 export async function generateMetadata({ params }: BookDetailPageProps): Promise<Metadata> {

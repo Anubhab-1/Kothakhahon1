@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
       "An independent Bengali publishing house for literary fiction, essays, and enduring contemporary voices.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a0a0a",
+    background_color: "#18140f",
     theme_color: "#dbb56f",
     icons: [
       {

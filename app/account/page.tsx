@@ -67,6 +67,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           <span className="rounded-full border border-smoke px-3 py-1 font-ui tracking-[0.13em] text-parchment">
             {session.email}
           </span>
+          <Link
+            href="/account/wishlist"
+            className="inline-flex items-center gap-1.5 rounded-full border border-smoke px-3 py-1 font-ui tracking-[0.13em] text-parchment transition hover:border-gold hover:text-gold"
+          >
+            ♡ Wishlist
+          </Link>
         </div>
       </section>
 

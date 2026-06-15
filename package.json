@@ -16,7 +16,8 @@
     "db:local:start": "node scripts/postgres-dev.mjs start",
     "db:local:stop": "node scripts/postgres-dev.mjs stop",
     "content:bootstrap": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/bootstrap-content.ts",
-    "admin:create": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-admin.ts"
+    "admin:create": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-admin.ts",
+    "test": "node --import tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

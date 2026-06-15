@@ -1,11 +1,16 @@
 import Razorpay from "razorpay";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAllBooks } from "@/lib/content";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { sendCashOnDeliveryOrderEmails } from "@/lib/email";
+import {
+  queueCashOnDeliveryOrderEmails,
+  runEmailJobsAfterResponse,
+} from "@/lib/email-jobs";
+import { getEffectiveStockStatus, normalizeStockQuantity } from "@/lib/inventory";
+import { commitOrderInventory, InventoryAdjustmentError } from "@/lib/order-inventory";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getShippingQuote } from "@/lib/shipping";
 import { getSession } from "@/lib/auth/session";
 
 const shippingAddressSchema = z.object({
@@ -31,6 +36,8 @@ const requestSchema = z.object({
     )
     .min(1),
   paymentMethod: z.enum(["razorpay", "cod"]).default("razorpay"),
+  // couponId from client is only used as a lookup key — discount re-computed server-side
+  couponId: z.string().optional().nullable(),
 });
 
 function getClientIdentifier(request: Request) {
@@ -54,40 +61,74 @@ function getRazorpayConfig() {
 }
 
 async function getAuthoritativePricedItems(items: z.infer<typeof requestSchema>["items"]) {
-  const books = await getAllBooks();
+  const requestedBookIds = Array.from(
+    new Set(items.map((item) => item.bookId).filter(Boolean)),
+  );
+  const books = await db.book.findMany({
+    where: {
+      OR: [
+        {
+          id: {
+            in: requestedBookIds,
+          },
+        },
+        {
+          slug: {
+            in: requestedBookIds,
+          },
+        },
+      ],
+    },
+    include: {
+      author: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
   const bookMap = new Map(
     books.flatMap((book) => [
       [
-        book._id,
+        book.id,
         {
-          bookId: book._id,
+          bookId: book.id,
           bookSlug: book.slug,
           bookTitle: book.title,
           bookAuthor: book.author?.name ?? "Unknown Author",
           bookCoverUrl: book.coverImageUrl ?? null,
           price: book.price ?? 0,
+          stockQuantity: normalizeStockQuantity(book.stockQuantity),
+          stockStatus: getEffectiveStockStatus(book),
         },
       ] as const,
       [
         book.slug,
         {
-          bookId: book._id,
+          bookId: book.id,
           bookSlug: book.slug,
           bookTitle: book.title,
           bookAuthor: book.author?.name ?? "Unknown Author",
           bookCoverUrl: book.coverImageUrl ?? null,
           price: book.price ?? 0,
+          stockQuantity: normalizeStockQuantity(book.stockQuantity),
+          stockStatus: getEffectiveStockStatus(book),
         },
       ] as const,
     ]),
   );
 
-  const missingBookIds: string[] = [];
+  const unavailableBookIds: string[] = [];
   const pricedItems = items
     .map((item) => {
       const mapped = bookMap.get(item.bookId);
-      if (!mapped || mapped.price <= 0) {
-        missingBookIds.push(item.bookId);
+      if (
+        !mapped ||
+        mapped.price <= 0 ||
+        mapped.stockStatus === "out_of_stock" ||
+        mapped.stockQuantity < item.quantity
+      ) {
+        unavailableBookIds.push(item.bookId);
         return null;
       }
 
@@ -98,10 +139,10 @@ async function getAuthoritativePricedItems(items: z.infer<typeof requestSchema>[
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
-  if (missingBookIds.length > 0) {
+  if (unavailableBookIds.length > 0) {
     return {
       items: [],
-      error: `Some cart items are no longer available: ${missingBookIds.join(", ")}`,
+      error: `Some cart items are unavailable or out of stock: ${unavailableBookIds.join(", ")}`,
     };
   }
 
@@ -152,63 +193,123 @@ export async function POST(request: Request) {
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
-  const shippingAmount = 0;
-  const totalAmount = subtotalAmount + shippingAmount;
+  const shippingQuote = getShippingQuote({
+    country: payload.shippingAddress.country,
+    subtotalAmount,
+  });
+  const shippingAmount = shippingQuote.shippingAmount;
+
+  // ── Server-side coupon validation ───────────────────────────────────────
+  let couponDiscount = 0;
+  let validatedCoupon: { id: string; type: string; value: number } | null = null;
+
+  if (payload.couponId) {
+    const coupon = await db.coupon.findUnique({
+      where: { id: payload.couponId },
+      select: { id: true, code: true, type: true, value: true, minOrderAmount: true, maxUses: true, usedCount: true, expiresAt: true, isActive: true },
+    });
+
+    const couponValid =
+      coupon &&
+      coupon.isActive &&
+      (!coupon.expiresAt || coupon.expiresAt > new Date()) &&
+      (coupon.maxUses === null || coupon.usedCount < coupon.maxUses) &&
+      (coupon.minOrderAmount === null || subtotalAmount >= coupon.minOrderAmount);
+
+    if (couponValid) {
+      couponDiscount =
+        coupon.type === "percent"
+          ? Math.round((subtotalAmount * coupon.value) / 100)
+          : Math.min(coupon.value, subtotalAmount);
+      validatedCoupon = coupon;
+    }
+  }
+
+  const discountAmount = couponDiscount;
+  const totalAmount = Math.max(0, subtotalAmount + shippingAmount - discountAmount);
 
   if (totalAmount <= 0) {
     return NextResponse.json({ error: "Cart total is invalid." }, { status: 400 });
   }
 
-  if (
-    payload.paymentMethod === "cod" &&
-    payload.shippingAddress.country.trim().toLowerCase() !== "india"
-  ) {
-    return NextResponse.json(
-      { error: "Cash on delivery is currently available only for India deliveries." },
-      { status: 400 },
-    );
+  if (!shippingQuote.serviceable) {
+    return NextResponse.json({ error: shippingQuote.message }, { status: 400 });
   }
 
-  const order = await db.order.create({
-    data: {
-      userId: ownedBySession ? session.userId : null,
-      status: "pending",
-      paymentMethod: payload.paymentMethod,
-      paymentStatus: "pending",
-      customerName: payload.shippingAddress.fullName,
-      customerEmail: normalizedEmail,
-      customerPhone: payload.shippingAddress.phone,
-      addressLine1: payload.shippingAddress.addressLine1,
-      addressLine2: payload.shippingAddress.addressLine2,
-      city: payload.shippingAddress.city,
-      state: payload.shippingAddress.state,
-      postalCode: payload.shippingAddress.postalCode,
-      country: payload.shippingAddress.country,
-      subtotalAmount,
-      shippingAmount,
-      totalAmount,
-      items: {
-        create: pricedResult.items.map((item) => ({
-          bookId: item.bookId,
-          bookSlug: item.bookSlug,
-          bookTitle: item.bookTitle,
-          bookAuthor: item.bookAuthor,
-          bookCoverUrl: item.bookCoverUrl,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      },
-    },
-    include: {
-      items: true,
-    },
-  });
+  let order;
+  try {
+    order = await db.$transaction(async (tx) => {
+      const createdOrder = await tx.order.create({
+        data: {
+          userId: ownedBySession ? session.userId : null,
+          status: payload.paymentMethod === "cod" ? "pending" : "payment_pending",
+          paymentMethod: payload.paymentMethod,
+          paymentStatus: "pending",
+          customerName: payload.shippingAddress.fullName,
+          customerEmail: normalizedEmail,
+          customerPhone: payload.shippingAddress.phone,
+          addressLine1: payload.shippingAddress.addressLine1,
+          addressLine2: payload.shippingAddress.addressLine2,
+          city: payload.shippingAddress.city,
+          state: payload.shippingAddress.state,
+          postalCode: payload.shippingAddress.postalCode,
+          country: payload.shippingAddress.country,
+          subtotalAmount,
+          shippingAmount,
+          totalAmount,
+          items: {
+            create: pricedResult.items.map((item) => ({
+              bookId: item.bookId,
+              bookSlug: item.bookSlug,
+              bookTitle: item.bookTitle,
+              bookAuthor: item.bookAuthor,
+              bookCoverUrl: item.bookCoverUrl,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          },
+        },
+        include: {
+          items: true,
+        },
+      });
+
+      // Atomically record coupon usage and increment usedCount
+      if (validatedCoupon) {
+        await tx.couponUse.create({
+          data: {
+            couponId: validatedCoupon.id,
+            orderId: createdOrder.id,
+            userId: ownedBySession ? session.userId : null,
+            discount: discountAmount,
+          },
+        });
+        await tx.coupon.update({
+          where: { id: validatedCoupon.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+
+      if (payload.paymentMethod === "cod") {
+        await commitOrderInventory(tx, createdOrder.id);
+      }
+
+      return createdOrder;
+    });
+  } catch (error) {
+    if (error instanceof InventoryAdjustmentError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+
+    throw error;
+  }
 
   if (payload.paymentMethod === "cod") {
     try {
-      await sendCashOnDeliveryOrderEmails(order);
+      await queueCashOnDeliveryOrderEmails(order.id);
+      runEmailJobsAfterResponse();
     } catch (error) {
-      console.error(error instanceof Error ? error.message : "COD email send failed.");
+      console.error(error instanceof Error ? error.message : "COD email job enqueue failed.");
     }
 
     return NextResponse.json({

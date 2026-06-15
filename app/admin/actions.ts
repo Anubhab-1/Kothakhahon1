@@ -14,6 +14,21 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { slugify } from "@/lib/slug";
 import { invalidateContentPresenceCache } from "@/lib/content";
+import {
+  getDerivedStockStatus,
+  normalizeLowStockThreshold,
+  normalizeStockQuantity,
+} from "@/lib/inventory";
+import {
+  commitOrderInventory,
+  InventoryAdjustmentError,
+  releaseOrderInventory,
+} from "@/lib/order-inventory";
+import {
+  sendOrderShippedEmail,
+  sendOrderDeliveredEmail,
+} from "@/lib/email";
+import { getSiteUrl } from "@/lib/env";
 
 function optionalString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -302,9 +317,12 @@ export async function saveBookAction(formData: FormData) {
   const authorId = optionalString(formData, "authorId");
   const genreNames = parseLines(optionalString(formData, "genres"));
   const price = parseFloatField(formData, "price");
+  const stockQuantity = normalizeStockQuantity(parseIntField(formData, "stockQuantity"));
+  const lowStockThreshold = normalizeLowStockThreshold(parseIntField(formData, "lowStockThreshold"));
   const pageCount = parseIntField(formData, "pageCount");
   const reviewCount = parseIntField(formData, "reviewCount");
   const averageRating = parseFloatField(formData, "averageRating");
+  const stockStatus = getDerivedStockStatus(stockQuantity, lowStockThreshold);
 
   try {
     if (authorId) {
@@ -334,6 +352,9 @@ export async function saveBookAction(formData: FormData) {
             synopsis: optionalString(formData, "synopsis") || null,
             pullQuote: optionalString(formData, "pullQuote") || null,
             price,
+            stockQuantity,
+            lowStockThreshold,
+            stockStatus,
             buyLink: optionalString(formData, "buyLink") || null,
             publicationDate: optionalString(formData, "publicationDate") || null,
             pageCount,
@@ -355,6 +376,9 @@ export async function saveBookAction(formData: FormData) {
             synopsis: optionalString(formData, "synopsis") || null,
             pullQuote: optionalString(formData, "pullQuote") || null,
             price,
+            stockQuantity,
+            lowStockThreshold,
+            stockStatus,
             buyLink: optionalString(formData, "buyLink") || null,
             publicationDate: optionalString(formData, "publicationDate") || null,
             pageCount,
@@ -566,6 +590,8 @@ export async function updateOrderStatusAction(formData: FormData) {
   const id = requiredString(formData, "id", "Order id");
   const status = requiredString(formData, "status", "Order status") as OrderStatus;
   const paymentStatus = requiredString(formData, "paymentStatus", "Payment status") as PaymentStatus;
+  const trackingNumber = optionalString(formData, "trackingNumber") || null;
+  const carrier = optionalString(formData, "carrier") || null;
 
   if (!Object.values(OrderStatus).includes(status)) {
     redirect(buildRedirect(`/admin/orders/${id}`, { error: "Invalid order status." }));
@@ -575,30 +601,129 @@ export async function updateOrderStatusAction(formData: FormData) {
     redirect(buildRedirect(`/admin/orders/${id}`, { error: "Invalid payment status." }));
   }
 
-  const order = await db.order.findUnique({
-    where: { id },
-    select: {
-      paymentCollectedAt: true,
-      paidAt: true,
-    },
-  });
+  try {
+    await db.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id },
+        select: {
+          status: true,
+          paymentMethod: true,
+          paymentCollectedAt: true,
+          paidAt: true,
+          processingAt: true,
+          packedAt: true,
+          shippedAt: true,
+          deliveredAt: true,
+          cancelledAt: true,
+          refundedAt: true,
+        },
+      });
 
-  if (!order) {
-    redirect(buildRedirect("/admin/orders", { error: "Order not found." }));
+      if (!order) {
+        throw new Error("Order not found.");
+      }
+
+      const shouldReleaseInventory =
+        status === "cancelled" || status === "refunded" || paymentStatus === "refunded";
+      const shouldCommitInventory =
+        !shouldReleaseInventory &&
+        (paymentStatus === "paid" || order.paymentMethod === "cod");
+
+      if (shouldReleaseInventory) {
+        await releaseOrderInventory(tx, id);
+      } else if (shouldCommitInventory) {
+        await commitOrderInventory(tx, id);
+      }
+
+      const now = new Date();
+      const nextPaidTimestamp =
+        paymentStatus === "paid"
+          ? order.paymentCollectedAt ?? order.paidAt ?? now
+          : order.paymentCollectedAt;
+      const reachedProcessing = ["processing", "packed", "shipped", "delivered"].includes(status);
+      const reachedPacked = ["packed", "shipped", "delivered"].includes(status);
+      const reachedShipped = ["shipped", "delivered"].includes(status);
+      const reachedDelivered = status === "delivered";
+
+      await tx.order.update({
+        where: { id },
+        data: {
+          status,
+          paymentStatus,
+          trackingNumber,
+          carrier,
+          paymentCollectedAt: nextPaidTimestamp,
+          paidAt: paymentStatus === "paid" ? order.paidAt ?? now : order.paidAt,
+          processingAt: reachedProcessing ? order.processingAt ?? now : order.processingAt,
+          packedAt: reachedPacked ? order.packedAt ?? now : order.packedAt,
+          shippedAt: reachedShipped ? order.shippedAt ?? now : order.shippedAt,
+          deliveredAt: reachedDelivered ? order.deliveredAt ?? now : order.deliveredAt,
+          cancelledAt: status === "cancelled" ? order.cancelledAt ?? now : order.cancelledAt,
+          refundedAt:
+            status === "refunded" || paymentStatus === "refunded"
+              ? order.refundedAt ?? now
+              : order.refundedAt,
+        },
+      });
+    });
+  } catch (error) {
+    const message =
+      error instanceof InventoryAdjustmentError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to update order.";
+    redirect(buildRedirect(`/admin/orders/${id}`, { error: message }));
   }
 
-  const nextPaidTimestamp =
-    paymentStatus === "paid" ? order.paymentCollectedAt ?? order.paidAt ?? new Date() : null;
-
-  await db.order.update({
+  // --- Transactional emails on status transitions ---
+  // Fetch updated order data after transaction commits
+  const updatedOrder = await db.order.findUnique({
     where: { id },
-    data: {
-      status,
-      paymentStatus,
-      paymentCollectedAt: nextPaidTimestamp,
-      paidAt: paymentStatus === "paid" ? order.paidAt ?? new Date() : null,
+    select: {
+      status: true,
+      customerEmail: true,
+      customerName: true,
+      trackingNumber: true,
+      carrier: true,
     },
   });
+
+  if (updatedOrder) {
+    const orderLabel = `#${id.slice(-8).toUpperCase()}`;
+    const siteUrl = getSiteUrl().toString().replace(/\/$/, "");
+
+    function getTrackingUrl(carrierName?: string | null, trackingNo?: string | null) {
+      if (!carrierName || !trackingNo) return null;
+      const c = carrierName.toLowerCase().trim();
+      if (c === "delhivery") return `https://www.delhivery.com/track/package/${trackingNo.trim()}`;
+      if (c === "dhl") return `https://www.dhl.com/in-en/home/tracking/tracking-express.html?submit=1&tracking-id=${trackingNo.trim()}`;
+      if (c === "fedex") return `https://www.fedex.com/apps/fedextrack/?tracknumbers=${trackingNo.trim()}`;
+      return null;
+    }
+
+    try {
+      if (status === "shipped") {
+        await sendOrderShippedEmail({
+          to: updatedOrder.customerEmail,
+          customerName: updatedOrder.customerName,
+          orderLabel,
+          trackingNumber: updatedOrder.trackingNumber,
+          carrier: updatedOrder.carrier,
+          trackingUrl: getTrackingUrl(updatedOrder.carrier, updatedOrder.trackingNumber),
+        });
+      } else if (status === "delivered") {
+        await sendOrderDeliveredEmail({
+          to: updatedOrder.customerEmail,
+          customerName: updatedOrder.customerName,
+          orderLabel,
+          siteUrl,
+        });
+      }
+    } catch {
+      // Email failure should never block the admin redirect — silently swallow
+    }
+  }
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
@@ -622,4 +747,43 @@ export async function updateManuscriptStatusAction(formData: FormData) {
 
   revalidatePath("/admin/inbox/manuscripts");
   redirect(buildRedirect("/admin/inbox/manuscripts", { saved: "1" }));
+}
+
+export async function retryEmailJobAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = requiredString(formData, "id", "Email job id");
+
+  await db.emailJob.update({
+    where: { id },
+    data: {
+      status: "queued",
+      attempts: 0,
+      runAt: new Date(),
+      lastError: null,
+      failedAt: null,
+    },
+  });
+
+  revalidatePath("/admin/email-jobs");
+  redirect(buildRedirect("/admin/email-jobs", { notice: "Email job queued for retry." }));
+}
+
+export async function triggerEmailQueueDrainAction() {
+  await requireAdminSession();
+
+  const { processPendingEmailJobs } = await import("@/lib/email-jobs");
+
+  try {
+    const summary = await processPendingEmailJobs({ batchSize: 10, maxBatches: 2 });
+    revalidatePath("/admin/email-jobs");
+    redirect(
+      buildRedirect("/admin/email-jobs", {
+        notice: `Queue processed. Completed: ${summary.completedCount}, Failed: ${summary.failedCount}, Retried: ${summary.retriedCount}`,
+      })
+    );
+  } catch (error) {
+    console.error("Queue drain error:", error);
+    redirect(buildRedirect("/admin/email-jobs", { error: "Failed to process email queue." }));
+  }
 }

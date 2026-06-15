@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
-import { sendContactSubmissionEmails } from "@/lib/email";
+import {
+  queueContactSubmissionEmails,
+  runEmailJobsAfterResponse,
+} from "@/lib/email-jobs";
 
 const contactSchema = z.object({
   fullName: z.string().min(2),
@@ -55,7 +58,14 @@ export async function POST(request: Request) {
     },
   });
 
-  await sendContactSubmissionEmails(message);
+  try {
+    await queueContactSubmissionEmails(message.id);
+    runEmailJobsAfterResponse();
+  } catch (error) {
+    console.error(
+      error instanceof Error ? error.message : "Contact email job enqueue failed.",
+    );
+  }
 
   return NextResponse.json({ success: true }, { status: 201 });
 }

@@ -9,10 +9,14 @@ datasource db {
 
 enum OrderStatus {
   pending
-  fulfilled
-  cancelled
+  payment_pending
   paid
-  failed
+  processing
+  packed
+  shipped
+  delivered
+  cancelled
+  refunded
 }
 
 enum PaymentMethod {
@@ -25,6 +29,32 @@ enum PaymentStatus {
   paid
   failed
   refunded
+}
+
+enum StockStatus {
+  in_stock
+  low_stock
+  out_of_stock
+}
+
+enum EmailJobType {
+  contact_customer
+  contact_admin
+  manuscript_customer
+  manuscript_admin
+  newsletter_customer
+  newsletter_admin
+  cod_order_customer
+  cod_order_admin
+  paid_order_customer
+  paid_order_admin
+}
+
+enum EmailJobStatus {
+  queued
+  processing
+  completed
+  failed
 }
 
 enum UserRole {
@@ -43,6 +73,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   orders       Order[]
+  wishlist     WishlistItem[]
+  reviews      Review[]
 
   @@index([role])
   @@map("AdminUser")
@@ -115,6 +147,9 @@ model Book {
   synopsis        String?
   pullQuote       String?
   price           Float?
+  stockQuantity   Int         @default(12)
+  lowStockThreshold Int       @default(3)
+  stockStatus     StockStatus @default(in_stock)
   buyLink         String?
   publicationDate String?
   pageCount       Int?
@@ -128,6 +163,8 @@ model Book {
   genres          BookGenre[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+
+  @@index([stockStatus, stockQuantity])
 }
 
 model BookGenre {
@@ -212,10 +249,22 @@ model Order {
   subtotalAmount     Float
   shippingAmount     Float         @default(0)
   totalAmount        Float
+  invoiceNumber      String?       @unique
+  invoiceIssuedAt    DateTime?
+  trackingNumber     String?
+  carrier            String?
   razorpayOrderId    String?       @unique
   razorpayPaymentId  String?       @unique
   paidAt             DateTime?
   paymentCollectedAt DateTime?
+  inventoryCommittedAt DateTime?
+  inventoryReleasedAt DateTime?
+  processingAt       DateTime?
+  packedAt           DateTime?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  cancelledAt        DateTime?
+  refundedAt         DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   user               User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -239,4 +288,107 @@ model OrderItem {
   order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+model EmailJob {
+  id          String         @id @default(cuid())
+  type        EmailJobType
+  status      EmailJobStatus @default(queued)
+  dedupeKey   String?        @unique
+  payload     Json
+  attempts    Int            @default(0)
+  maxAttempts Int            @default(5)
+  runAt       DateTime       @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?
+  lastError   String?
+  completedAt DateTime?
+  failedAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status, runAt])
+  @@index([type, status])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model WishlistItem {
+  id           String   @id @default(cuid())
+  userId       String
+  bookId       String
+  bookSlug     String
+  bookTitle    String
+  bookAuthor   String
+  bookCoverUrl String?
+  price        Float?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, bookId])
+  @@index([userId])
+}
+
+model Review {
+  id               String   @id @default(cuid())
+  bookId           String
+  bookSlug         String
+  userId           String
+  reviewerName     String
+  rating           Int
+  title            String?
+  body             String?
+  approved         Boolean  @default(false)
+  purchaseVerified Boolean  @default(false)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, bookId])
+  @@index([bookId, approved])
+  @@index([userId])
+}
+
+model Coupon {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  type         CouponType
+  value        Float
+  minOrderAmount Float?
+  maxUses      Int?
+  usedCount    Int         @default(0)
+  expiresAt    DateTime?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  uses         CouponUse[]
+
+  @@index([code, isActive])
+}
+
+model CouponUse {
+  id        String   @id @default(cuid())
+  couponId  String
+  orderId   String   @unique
+  userId    String?
+  discount  Float
+  coupon    Coupon   @relation(fields: [couponId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([couponId])
+  @@index([userId])
+}
+
+enum CouponType {
+  percent
+  flat
 }

@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { getDerivedStockStatus } from "@/lib/inventory";
 import type { Author, BlogPost, Book, SiteSettings } from "@/lib/types";
 
 function clone<T>(value: T): T {
@@ -484,6 +485,9 @@ function mapAuthorRecord(author: AuthorRecord): Author {
 }
 
 function mapBookRecord(book: BookRecord): Book {
+  const stockQuantity = book.stockQuantity;
+  const lowStockThreshold = book.lowStockThreshold;
+
   return {
     _id: book.id,
     title: book.title,
@@ -509,6 +513,9 @@ function mapBookRecord(book: BookRecord): Book {
     chapterPreview: book.chapterPreview ?? undefined,
     averageRating: book.averageRating ?? undefined,
     reviewCount: book.reviewCount,
+    stockQuantity,
+    lowStockThreshold,
+    stockStatus: getDerivedStockStatus(stockQuantity, lowStockThreshold),
   };
 }
 

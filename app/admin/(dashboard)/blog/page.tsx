@@ -73,7 +73,7 @@ export default async function AdminBlogPage({ searchParams }: AdminBlogPageProps
             <p className="admin-eyebrow">Journal Search</p>
             <h2 className="mt-2 font-title text-3xl text-ink">Find a post draft or essay</h2>
           </div>
-          <span className="rounded-full border border-ink/10 bg-white/70 px-4 py-2 font-ui text-[11px] tracking-[0.14em] text-ink/70">
+          <span style={{ display:"inline-flex", alignItems:"center", borderRadius:"999px", border:"1px solid rgba(99,102,241,0.2)", background:"rgba(99,102,241,0.08)", padding:"0.25rem 0.85rem", fontSize:"0.68rem", fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#a5b4fc" }}>
             {totalCount} MATCHING POSTS
           </span>
         </div>
@@ -92,7 +92,7 @@ export default async function AdminBlogPage({ searchParams }: AdminBlogPageProps
         </form>
       </section>
 
-      <div className="overflow-hidden rounded-[28px] border border-ink/10 bg-white shadow-[0_18px_38px_rgba(54,44,32,0.06)]">
+      <div style={{ overflow:"hidden", borderRadius:"20px", border:"1px solid rgba(99,102,241,0.12)", background:"linear-gradient(135deg,#181c27,#1e2233)", boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
         <table className="admin-table">
           <thead>
             <tr>

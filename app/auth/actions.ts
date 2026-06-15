@@ -1,10 +1,13 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSession, clearSession, requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { sendPasswordResetEmail } from "@/lib/email";
+import { getSiteUrlString } from "@/lib/env";
 
 async function claimOrdersForUser(userId: string, email: string) {
   await db.order.updateMany({
@@ -161,4 +164,89 @@ export async function updateAccountProfileAction(formData: FormData) {
   revalidatePath("/account");
   revalidatePath("/account/orders");
   redirect("/account?notice=Profile%20updated.");
+}
+
+export async function forgotPasswordAction(formData: FormData) {
+  const email = optionalString(formData, "email").toLowerCase();
+
+  if (!email) {
+    redirect("/forgot-password?error=Please%20enter%20your%20email%20address.");
+  }
+
+  // Always show success to prevent email enumeration
+  const user = await db.user.findUnique({ where: { email }, select: { id: true, isActive: true } });
+
+  if (user?.isActive) {
+    // Invalidate any existing tokens for this email
+    await db.passwordResetToken.deleteMany({ where: { email } });
+
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.passwordResetToken.create({
+      data: { email, token, expiresAt },
+    });
+
+    const resetUrl = `${getSiteUrlString()}/reset-password?token=${token}`;
+    try {
+      await sendPasswordResetEmail({ to: email, resetUrl });
+    } catch {
+      // Silently fail — don't expose email issues to user
+    }
+  }
+
+  redirect(
+    "/forgot-password?notice=If%20that%20email%20is%20registered%2C%20a%20reset%20link%20has%20been%20sent.",
+  );
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = optionalString(formData, "token");
+  const newPassword = optionalString(formData, "newPassword");
+  const confirmPassword = optionalString(formData, "confirmPassword");
+
+  if (!token) {
+    redirect("/forgot-password?error=Invalid%20or%20missing%20reset%20token.");
+  }
+
+  if (!newPassword || !confirmPassword) {
+    redirect(`/reset-password?token=${token}&error=Both%20password%20fields%20are%20required.`);
+  }
+
+  if (newPassword.length < 8) {
+    redirect(`/reset-password?token=${token}&error=Password%20must%20be%20at%20least%208%20characters.`);
+  }
+
+  if (newPassword !== confirmPassword) {
+    redirect(`/reset-password?token=${token}&error=Passwords%20do%20not%20match.`);
+  }
+
+  const resetToken = await db.passwordResetToken.findUnique({
+    where: { token },
+  });
+
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    redirect("/forgot-password?error=This%20reset%20link%20has%20expired%20or%20already%20been%20used.%20Please%20request%20a%20new%20one.");
+  }
+
+  const user = await db.user.findUnique({
+    where: { email: resetToken.email },
+  });
+
+  if (!user || !user.isActive) {
+    redirect("/login?error=Account%20not%20found.");
+  }
+
+  await db.$transaction([
+    db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: hashPassword(newPassword) },
+    }),
+    db.passwordResetToken.update({
+      where: { token },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+
+  redirect("/login?notice=Password%20updated%20successfully.%20Please%20sign%20in.");
 }

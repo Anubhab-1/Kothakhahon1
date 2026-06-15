@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
-import { sendManuscriptSubmissionEmails } from "@/lib/email";
+import {
+  queueManuscriptSubmissionEmails,
+  runEmailJobsAfterResponse,
+} from "@/lib/email-jobs";
 
 const manuscriptSchema = z.object({
   fullName: z.string().min(2),
@@ -65,7 +68,14 @@ export async function POST(request: Request) {
     },
   });
 
-  await sendManuscriptSubmissionEmails(submission);
+  try {
+    await queueManuscriptSubmissionEmails(submission.id);
+    runEmailJobsAfterResponse();
+  } catch (error) {
+    console.error(
+      error instanceof Error ? error.message : "Manuscript email job enqueue failed.",
+    );
+  }
 
   return NextResponse.json({ success: true }, { status: 201 });
 }

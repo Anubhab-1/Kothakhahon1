@@ -33,6 +33,7 @@ interface CartContextValue {
   itemCount: number;
   subtotal: number;
   isDrawerOpen: boolean;
+  isHydrated: boolean;
   addItem: (item: AddCartInput, quantity?: number) => void;
   removeItem: (bookId: string) => void;
   setQuantity: (bookId: string, quantity: number) => void;
@@ -51,6 +52,7 @@ const fallbackCartContext: CartContextValue = {
   itemCount: 0,
   subtotal: 0,
   isDrawerOpen: false,
+  isHydrated: false,
   addItem: noop,
   removeItem: noop,
   setQuantity: noop,
@@ -92,18 +94,23 @@ function parseStoredItems(value: string | null): CartLineItem[] {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartLineItem[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    return parseStoredItems(window.localStorage.getItem(STORAGE_KEY));
-  });
+  const [items, setItems] = useState<CartLineItem[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      setItems(parseStoredItems(stored));
+    }
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (isHydrated) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+  }, [items, isHydrated]);
 
   const addItem = useCallback((item: AddCartInput, quantity = 1) => {
     const safeQuantity = Math.max(1, Math.floor(quantity || 1));
@@ -172,6 +179,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       itemCount,
       subtotal,
       isDrawerOpen,
+      isHydrated,
       addItem,
       removeItem,
       setQuantity,
@@ -185,6 +193,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       itemCount,
       subtotal,
       isDrawerOpen,
+      isHydrated,
       addItem,
       removeItem,
       setQuantity,

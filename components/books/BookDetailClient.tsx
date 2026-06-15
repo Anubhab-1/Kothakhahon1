@@ -18,13 +18,33 @@ import AddToCart from "@/components/ui/AddToCart";
 import ChapterPreview from "@/components/ui/ChapterPreview";
 import DecorativeBookCover from "@/components/ui/DecorativeBookCover";
 import StarRating from "@/components/ui/StarRating";
+import WishlistButton from "@/components/ui/WishlistButton";
+import ReviewForm from "@/components/ui/ReviewForm";
+import { ReviewItem } from "@/components/ui/ReviewItem";
+import ShareButton from "@/components/ui/ShareButton";
 import { formatDisplayDate } from "@/lib/date";
+import { getStockStatusLabel, isBookAvailableForSale } from "@/lib/inventory";
 import type { BookDetailView, RelatedBook } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
+import { getSiteUrlString } from "@/lib/env";
+
+interface ReviewSnapshot {
+  id: string;
+  reviewerName: string;
+  rating: number;
+  title: string | null;
+  body: string | null;
+  purchaseVerified: boolean;
+  createdAt: Date;
+}
 
 interface BookDetailClientProps {
   book: BookDetailView;
   relatedBooks: RelatedBook[];
+  isSaved?: boolean;
+  isLoggedIn?: boolean;
+  reviews?: ReviewSnapshot[];
+  hasReviewed?: boolean;
 }
 
 const reveal = {
@@ -32,7 +52,23 @@ const reveal = {
   show: { opacity: 1, y: 0 },
 };
 
-export default function BookDetailClient({ book, relatedBooks }: BookDetailClientProps) {
+export default function BookDetailClient({
+  book,
+  relatedBooks,
+  isSaved = false,
+  isLoggedIn = false,
+  reviews = [],
+  hasReviewed = false,
+}: BookDetailClientProps) {
+  const isAvailable = isBookAvailableForSale(book);
+  const stockStatusLabel = getStockStatusLabel(book.stockStatus);
+  const stockMessage =
+    book.stockStatus === "out_of_stock"
+      ? "This title is temporarily unavailable for checkout."
+      : book.stockStatus === "low_stock"
+        ? `Only ${book.stockQuantity} copies are currently left in stock.`
+        : `${book.stockQuantity} copies are currently available for dispatch.`;
+
   const trustPromises = [
     {
       title: "Cash On Delivery",
@@ -144,9 +180,11 @@ export default function BookDetailClient({ book, relatedBooks }: BookDetailClien
           <div className="editorial-panel rounded-xl p-6">
             <p className="font-ui text-xs tracking-[0.15em] text-stone">PRICE</p>
             <p className="mt-1 font-title text-4xl text-ivory">{formatINR(book.price)}</p>
+            <p className="mt-2 font-ui text-[11px] tracking-[0.14em] text-gold">
+              {stockStatusLabel.toUpperCase()}
+            </p>
             <p className="mt-3 max-w-2xl font-body text-base text-stone">
-              Order direct from the press with guest checkout and Cash on Delivery on eligible India
-              orders.
+              {stockMessage}
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <AddToCart
@@ -155,7 +193,19 @@ export default function BookDetailClient({ book, relatedBooks }: BookDetailClien
                 price={book.price}
                 authorName={book.authorName}
                 coverImageUrl={book.coverImageUrl}
+                disabled={!isAvailable}
               />
+              {isLoggedIn && (
+                <WishlistButton
+                  bookId={book.id}
+                  bookSlug={book.slug}
+                  bookTitle={book.title}
+                  bookAuthor={book.authorName}
+                  bookCoverUrl={book.coverImageUrl}
+                  price={book.price}
+                  isSaved={isSaved}
+                />
+              )}
               {book.buyLink ? (
                 <Link
                   href={book.buyLink}
@@ -170,6 +220,11 @@ export default function BookDetailClient({ book, relatedBooks }: BookDetailClien
               >
                 ASK ABOUT BULK OR GIFT ORDERS
               </Link>
+              <ShareButton
+                title={book.title}
+                text={`${book.title} by ${book.authorName} — ${book.synopsis.slice(0, 120)}…`}
+                url={`${getSiteUrlString()}/books/${book.slug}`}
+              />
             </div>
 
             <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -285,6 +340,44 @@ export default function BookDetailClient({ book, relatedBooks }: BookDetailClien
           ) : null}
         </motion.article>
 
+        {/* Reviews Section */}
+        <motion.section
+          variants={reveal}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.05 }}
+          transition={{ duration: 0.45 }}
+          className="space-y-6"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="font-ui text-xs tracking-[0.16em] text-gold">READER REVIEWS</p>
+              <h3 className="mt-1 text-safe font-title text-4xl text-ivory">
+                {reviews.length > 0 ? `${reviews.length} Review${reviews.length !== 1 ? "s" : ""}` : "Be the first to review"}
+              </h3>
+            </div>
+          </div>
+
+          {reviews.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {reviews.map((r) => (
+                <ReviewItem key={r.id} {...r} />
+              ))}
+            </div>
+          )}
+
+          {!hasReviewed && (
+            <ReviewForm bookId={book.id} bookSlug={book.slug} isLoggedIn={isLoggedIn} />
+          )}
+          {hasReviewed && (
+            <div className="rounded-2xl border border-smoke bg-obsidian/50 p-5 text-center">
+              <p className="font-body text-base text-stone">
+                You have already submitted a review — it will appear here after moderation.
+              </p>
+            </div>
+          )}
+        </motion.section>
+
         <motion.section
           variants={reveal}
           initial="hidden"
@@ -354,6 +447,7 @@ export default function BookDetailClient({ book, relatedBooks }: BookDetailClien
             price={book.price}
             authorName={book.authorName}
             coverImageUrl={book.coverImageUrl}
+            disabled={!isAvailable}
             label="ADD TO BAG"
             className="px-4 py-2.5 text-[10px]"
           />

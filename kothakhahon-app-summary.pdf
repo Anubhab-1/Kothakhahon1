@@ -1,0 +1,120 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 8082 >>
+stream
+q 0.995 0.990 0.975 rg 0.00 0.00 612.00 792.00 re f Q
+q 0.11 0.095 0.075 rg 0.00 710.00 612.00 82.00 re f Q
+0.96 0.90 0.78 rg BT /F2 18.00 Tf 1 0 0 1 34.00 758.00 Tm (Kothakhahon Prokashoni Web) Tj ET
+0.86 0.80 0.68 rg BT /F1 8.60 Tf 1 0 0 1 34.00 739.00 Tm (One-page repo-evidence summary | generated 2026-04-12) Tj ET
+0.86 0.80 0.68 rg BT /F2 8.40 Tf 1 0 0 1 456.00 758.00 Tm (Next.js / Prisma / Postgres) Tj ET
+q 0.70 0.55 0.30 RG 0.80 w 34.00 724.00 m 578.00 724.00 l S Q
+0.46 0.32 0.12 rg BT /F2 8.20 Tf 1 0 0 1 34.00 704.00 Tm (WHAT IT IS) Tj ET
+q 0.82 0.72 0.56 RG 0.55 w 34.00 700.00 m 124.00 700.00 l S Q
+0.10 0.10 0.10 rg BT /F1 8.80 Tf 1 0 0 1 34.00 689.00 Tm (Independent Bengali publishing storefront built with Next.js App Router. It sells and catalogs books, publishes) Tj ET
+0.10 0.10 0.10 rg BT /F1 8.80 Tf 1 0 0 1 34.00 678.60 Tm (journal/author pages, and supports contact and manuscript-submission flows backed by Prisma/PostgreSQL.) Tj ET
+0.46 0.32 0.12 rg BT /F2 8.20 Tf 1 0 0 1 34.00 662.20 Tm (WHO IT'S FOR) Tj ET
+q 0.82 0.72 0.56 RG 0.55 w 34.00 658.20 m 124.00 658.20 l S Q
+0.10 0.10 0.10 rg BT /F1 8.80 Tf 1 0 0 1 34.00 647.20 Tm (Primary: Bengali literature readers and book buyers. Secondary repo-supported users: writers submitting manuscripts,) Tj ET
+0.10 0.10 0.10 rg BT /F1 8.80 Tf 1 0 0 1 34.00 636.80 Tm (customer account holders, and staff admins.) Tj ET
+q 0.86 0.82 0.74 RG 0.45 w 306.00 620.40 m 306.00 85.00 l S Q
+0.46 0.32 0.12 rg BT /F2 8.20 Tf 1 0 0 1 34.00 613.40 Tm (WHAT IT DOES) Tj ET
+q 0.82 0.72 0.56 RG 0.55 w 34.00 609.40 m 124.00 609.40 l S Q
+0.46 0.32 0.12 rg BT /F2 7.55 Tf 1 0 0 1 34.00 598.40 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 598.40 Tm (Public storefront for home, books, authors, blog/journal,) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 589.50 Tm (about, contact, manuscript, policy, robots, and sitemap) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 580.60 Tm (routes.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.55 Tf 1 0 0 1 34.00 570.40 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 570.40 Tm (Catalog search, genre and price filters, sorting, pagination,) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 561.50 Tm (book detail pages, stock status, and add-to-cart UI.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.55 Tf 1 0 0 1 34.00 551.30 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 551.30 Tm (Local-storage cart and guest checkout with delivery details,) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 542.40 Tm (shipping quote, and COD-first payment flow.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.55 Tf 1 0 0 1 34.00 532.20 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 532.20 Tm (Server-side order creation with authoritative pricing, rate) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 523.30 Tm (limits, stock checks, and inventory commit/release.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.55 Tf 1 0 0 1 34.00 513.10 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 513.10 Tm (Optional Razorpay online payment with checkout verification,) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 504.20 Tm (webhook handling, and failed-payment handling.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.55 Tf 1 0 0 1 34.00 494.00 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 494.00 Tm (Login/register/account area with signed sessions and) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 485.10 Tm (guest-order linking by customer email.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.55 Tf 1 0 0 1 34.00 474.90 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 474.90 Tm (Admin workspace for catalog, authors, blog, orders, inbox,) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 466.00 Tm (newsletter, settings, launch readiness, Cloudinary image) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.55 Tf 1 0 0 1 43.00 457.10 Tm (upload, and seed import.) Tj ET
+0.46 0.32 0.12 rg BT /F2 8.20 Tf 1 0 0 1 315.00 613.40 Tm (HOW IT WORKS) Tj ET
+q 0.82 0.72 0.56 RG 0.55 w 315.00 609.40 m 405.00 609.40 l S Q
+0.46 0.32 0.12 rg BT /F2 7.20 Tf 1 0 0 1 315.00 598.40 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 598.40 Tm (App layer: Next.js 16 App Router under app/; React components) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 589.95 Tm (under components/; Tailwind CSS UI and public chrome in) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 581.50 Tm (layout components.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.20 Tf 1 0 0 1 315.00 571.75 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 571.75 Tm (Content flow: app pages call lib/content; it reads) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 563.30 Tm (Prisma/PostgreSQL and falls back to seed catalog arrays when) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 554.85 Tm (DB content is absent.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.20 Tf 1 0 0 1 315.00 545.10 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 545.10 Tm (Commerce flow: CartProvider stores items in localStorage;) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 536.65 Tm (CheckoutClient posts to /api/checkout/create-order; API) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 528.20 Tm (validates with Zod/rate limits, recalculates totals, writes) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 519.75 Tm (Order/OrderItem records, and updates inventory.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.20 Tf 1 0 0 1 315.00 510.00 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 510.00 Tm (Payment/email flow: Razorpay routes call lib/payments for) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 501.55 Tm (HMAC checks and status changes; EmailJob rows queue Resend) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 493.10 Tm (emails after response or through) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 484.65 Tm (/api/internal/email-jobs/process.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.20 Tf 1 0 0 1 315.00 474.90 Tm (-) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 474.90 Tm (Admin flow: /admin server actions require admin role, mutate) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 466.45 Tm (Prisma models, revalidate storefront paths, and use) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.20 Tf 1 0 0 1 324.00 458.00 Tm (Cloudinary for configured image uploads.) Tj ET
+0.46 0.32 0.12 rg BT /F2 8.20 Tf 1 0 0 1 315.00 444.25 Tm (HOW TO RUN) Tj ET
+q 0.82 0.72 0.56 RG 0.55 w 315.00 440.25 m 405.00 440.25 l S Q
+0.46 0.32 0.12 rg BT /F2 7.30 Tf 1 0 0 1 315.00 429.25 Tm (1.) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 429.25 Tm (npm install) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.30 Tf 1 0 0 1 315.00 420.05 Tm (2.) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 420.05 Tm (Copy .env.example to .env.local and fill required values.) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.30 Tf 1 0 0 1 315.00 410.85 Tm (3.) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 410.85 Tm (npm run db:local:setup) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.30 Tf 1 0 0 1 315.00 401.65 Tm (4.) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 401.65 Tm (npm run prisma:push) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.30 Tf 1 0 0 1 315.00 392.45 Tm (5.) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 392.45 Tm (npm run content:bootstrap) Tj ET
+0.46 0.32 0.12 rg BT /F2 7.30 Tf 1 0 0 1 315.00 383.25 Tm (6.) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 383.25 Tm (npm run admin:create -- editor@example.com) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 374.55 Tm (strong-password "Admin Name") Tj ET
+0.46 0.32 0.12 rg BT /F2 7.30 Tf 1 0 0 1 315.00 365.35 Tm (7.) Tj ET
+0.10 0.10 0.10 rg BT /F1 7.30 Tf 1 0 0 1 330.00 365.35 Tm (npm run dev; open http://localhost:3000) Tj ET
+q 0.82 0.78 0.69 RG 0.50 w 34.00 78.00 m 578.00 78.00 l S Q
+0.36 0.34 0.30 rg BT /F1 7.00 Tf 1 0 0 1 34.00 64.00 Tm (Repo evidence used: README.md, package.json, app/, components/, lib/, prisma/schema.prisma, scripts/.) Tj ET
+0.36 0.34 0.30 rg BT /F1 7.00 Tf 1 0 0 1 34.00 54.00 Tm (Not found in repo: none for the requested summary fields.) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000327 00000 n 
+0000000402 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+8535
+%%EOF

@@ -83,8 +83,8 @@ export default function NavBarClient() {
               })}
             </nav>
 
-            <div className="hidden items-center gap-2 md:flex">
-              <CatalogSearchForm className="hidden w-[280px] xl:flex" />
+            <div className="hidden items-center gap-2 md:flex xl:gap-4">
+              <CatalogSearchForm className="hidden w-[280px] xl:block" />
               <CartIcon />
               {user ? (
                 <Link

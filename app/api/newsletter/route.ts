@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
-import { sendNewsletterSubscriptionEmails } from "@/lib/email";
+import {
+  queueNewsletterSubscriptionEmails,
+  runEmailJobsAfterResponse,
+} from "@/lib/email-jobs";
 
 const newsletterSchema = z.object({
   email: z.string().email(),
@@ -52,7 +55,17 @@ export async function POST(request: Request) {
     },
   });
 
-  await sendNewsletterSubscriptionEmails(subscriber);
+  try {
+    await queueNewsletterSubscriptionEmails({
+      newsletterSubscriberId: subscriber.id,
+      eventKey: `${subscriber.id}:${subscriber.updatedAt.getTime()}`,
+    });
+    runEmailJobsAfterResponse();
+  } catch (error) {
+    console.error(
+      error instanceof Error ? error.message : "Newsletter email job enqueue failed.",
+    );
+  }
 
   return NextResponse.json({ success: true }, { status: 201 });
 }
