@@ -111,36 +111,6 @@ export default function HomePageClient({
   const sortedBooks = sortBooksByDate(allCatalogBooks);
   const newReleases = sortedBooks.slice(0, 4);
   const affordableEditions = sortedBooks.filter((book) => typeof book.price === "number" && book.price < 400).slice(0, 4);
-  const shelves = [
-    {
-      title: "New Releases",
-      href: "/books?sort=newest",
-      description: "The latest titles added to the list and front-of-store table.",
-      value: `${newReleases.length || allCatalogBooks.length}`,
-      icon: Sparkles,
-    },
-    {
-      title: "Poetry Shelf",
-      href: "/books?genre=Poetry",
-      description: "Lyric, intimate, and modern Bengali verse in compact editions.",
-      value: `${allCatalogBooks.filter((book) => book.genre?.some((genre) => genre.name === "Poetry")).length}`,
-      icon: BookHeart,
-    },
-    {
-      title: "Essay & Criticism",
-      href: "/books?genre=Essays",
-      description: "Reading for readers who want argument, context, and long-form thought.",
-      value: `${allCatalogBooks.filter((book) => book.genre?.some((genre) => genre.name === "Essays")).length}`,
-      icon: ScrollText,
-    },
-    {
-      title: "Under INR 400",
-      href: "/books?price=under-400",
-      description: "Reader-friendly editions for gifting, first orders, and impulse picks.",
-      value: `${allCatalogBooks.filter((book) => typeof book.price === "number" && book.price < 400).length}`,
-      icon: CreditCard,
-    },
-  ];
 
   return (
     <div className="grain-overlay">
@@ -238,45 +208,6 @@ export default function HomePageClient({
         </div>
       </div>
 
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.1 }}
-        transition={sectionTransition}
-        className="mx-auto w-full max-w-7xl px-4 py-20 md:px-8"
-      >
-        <SectionHeader
-          eyebrow="SHOP BY SHELF"
-          title="Start With A Reading Route"
-          description="Instead of one long list, enter the catalog through the shelf you actually want to browse."
-        />
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {shelves.map((shelf) => {
-            const Icon = shelf.icon;
-            return (
-              <Link
-                key={shelf.title}
-                href={shelf.href}
-                className="fx-card group rounded-2xl border border-smoke bg-obsidian/85 p-6 transition hover:-translate-y-1 hover:border-gold/60"
-              >
-                <div className="flex items-center justify-between">
-                  <Icon className="h-5 w-5 text-gold" />
-                  <span className="rounded-full border border-gold/35 bg-gold/10 px-2.5 py-1 font-ui text-[10px] tracking-[0.14em] text-gold">
-                    {shelf.value}
-                  </span>
-                </div>
-                <h3 className="mt-6 text-safe font-title text-3xl text-ivory">{shelf.title}</h3>
-                <p className="mt-3 font-body text-base text-stone transition group-hover:text-parchment">
-                  {shelf.description}
-                </p>
-                <span className="fx-link mt-6 inline-block font-ui text-[11px] tracking-[0.14em] text-gold">
-                  OPEN THIS SHELF
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </motion.section>
 
       <motion.section
         initial={{ opacity: 0, y: 20 }}
