@@ -65,7 +65,10 @@ export async function submitReviewAction(formData: FormData) {
   redirect(buildRedirect(`/books/${bookSlug}`, { reviewNotice: "Thank you! Your review has been submitted and will appear after moderation." }));
 }
 
+import { requireAdminSession } from "@/lib/auth/admin";
+
 export async function moderateReviewAction(formData: FormData) {
+  await requireAdminSession();
   const reviewId = (formData.get("reviewId") as string).trim();
   const action   = (formData.get("action")   as string).trim(); // "approve" | "reject"
 
