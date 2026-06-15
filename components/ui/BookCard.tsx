@@ -1,5 +1,6 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
+import { Heart } from "lucide-react";
 import type { Book } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import TiltCard from "@/components/ui/TiltCard";
@@ -10,7 +11,46 @@ interface BookCardProps {
   book: Book;
 }
 
+function StarsMini({ rating, count }: { rating: number; count: number }) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  return (
+    <div className="flex items-center gap-1">
+      <span className="flex gap-0.5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <svg
+            key={i}
+            viewBox="0 0 12 12"
+            className="h-2.5 w-2.5"
+            fill={i < full ? "#d8a84b" : i === full && half ? "url(#half)" : "none"}
+            stroke="#d8a84b"
+            strokeWidth="1"
+          >
+            <defs>
+              <linearGradient id="half">
+                <stop offset="50%" stopColor="#d8a84b" />
+                <stop offset="50%" stopColor="transparent" />
+              </linearGradient>
+            </defs>
+            <polygon points="6,1 7.6,4.2 11,4.7 8.5,7.1 9.1,10.5 6,8.8 2.9,10.5 3.5,7.1 1,4.7 4.4,4.2" />
+          </svg>
+        ))}
+      </span>
+      <span className="font-mono text-[10px] text-stone">{count}</span>
+    </div>
+  );
+}
+
 export default function BookCard({ book }: BookCardProps) {
+  const isLowStock =
+    book.stockStatus === "low_stock" ||
+    (typeof book.stockQuantity === "number" && book.stockQuantity > 0 && book.stockQuantity <= 3);
+  const firstGenre = book.genre?.[0]?.name;
+  const hasRating =
+    typeof (book as { averageRating?: number }).averageRating === "number" &&
+    typeof (book as { reviewCount?: number }).reviewCount === "number" &&
+    ((book as { reviewCount?: number }).reviewCount ?? 0) > 0;
+
   return (
     <TiltCard>
       <article className="fx-card group relative rounded-2xl border border-smoke bg-obsidian/80 p-3 transition hover:border-gold/60 sm:p-4">
@@ -29,6 +69,8 @@ export default function BookCard({ book }: BookCardProps) {
                 fill
                 sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                 className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEzMyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMjIxZDE3Ii8+PC9zdmc+"
               />
             ) : (
               <DecorativeBookCover
@@ -43,11 +85,33 @@ export default function BookCard({ book }: BookCardProps) {
 
           <div className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-t from-void/90 via-transparent to-transparent" />
 
-          {book.featured ? (
-            <div className="absolute left-2.5 top-2.5 z-[3] rounded-full border border-gold/40 bg-void/80 px-2 py-1 font-ui text-[9px] tracking-[0.14em] text-gold sm:left-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
-              FEATURED
-            </div>
-          ) : null}
+          {/* Badges */}
+          <div className="absolute left-2.5 top-2.5 z-[3] flex flex-col gap-1.5 sm:left-3 sm:top-3">
+            {book.featured && (
+              <span className="rounded-full border border-gold/40 bg-void/80 px-2 py-0.5 font-ui text-[9px] tracking-[0.14em] text-gold sm:px-2.5 sm:text-[10px]">
+                FEATURED
+              </span>
+            )}
+            {isLowStock && (
+              <span className="animate-pulse rounded-full border border-ember/50 bg-ember/20 px-2 py-0.5 font-ui text-[9px] tracking-[0.12em] text-ember sm:px-2.5 sm:text-[10px]">
+                LOW STOCK
+              </span>
+            )}
+          </div>
+
+          {/* Quick wishlist heart — visible on hover */}
+          <button
+            type="button"
+            aria-label={`Save ${book.title} to wishlist`}
+            className="absolute right-2.5 top-2.5 z-[3] rounded-full border border-smoke/80 bg-void/75 p-1.5 text-stone opacity-0 backdrop-blur-sm transition-all duration-200 hover:border-gold/60 hover:text-gold group-hover:opacity-100 sm:right-3 sm:top-3"
+            onClick={(e) => {
+              e.preventDefault();
+              // Wishlist from catalog requires auth — link to book page
+              window.location.href = `/books/${book.slug}#wishlist`;
+            }}
+          >
+            <Heart className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         <div className="relative z-20 mt-3 space-y-1.5 sm:mt-4 sm:space-y-2">
@@ -57,6 +121,21 @@ export default function BookCard({ book }: BookCardProps) {
           <p className="line-clamp-1 font-body text-[13px] text-stone sm:text-sm">
             {book.author?.name ?? "Unknown Author"}
           </p>
+
+          {/* Genre tag */}
+          {firstGenre && (
+            <span className="inline-block rounded-full border border-gold/20 bg-gold/8 px-2 py-0.5 font-ui text-[9px] tracking-[0.11em] text-gold/70">
+              {firstGenre.toUpperCase()}
+            </span>
+          )}
+
+          {/* Rating stars */}
+          {hasRating && (
+            <StarsMini
+              rating={(book as { averageRating?: number }).averageRating ?? 0}
+              count={(book as { reviewCount?: number }).reviewCount ?? 0}
+            />
+          )}
 
           <div className="ink-divider mt-2" />
 

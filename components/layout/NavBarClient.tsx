@@ -24,11 +24,17 @@ const links = [
 export default function NavBarClient() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const user = usePublicSession();
-  const scrolled = false;
   const accountHref = user?.role === "ADMIN" ? "/admin" : "/account";
   const accountLabel = user?.role === "ADMIN" ? "DASHBOARD" : "ACCOUNT";
   const accountSummary = user?.fullName ?? user?.email ?? "";
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (mobileOpen) {

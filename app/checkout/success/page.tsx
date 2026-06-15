@@ -9,6 +9,7 @@ import {
   getPaymentStatusLabel,
 } from "@/lib/orders";
 import { formatINR } from "@/lib/utils";
+import { ConfettiBurst } from "@/components/ui/ConfettiBurst";
 
 interface CheckoutSuccessPageProps {
   searchParams: Promise<{
@@ -56,6 +57,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="mx-auto flex min-h-[60vh] w-full max-w-3xl flex-col items-center justify-center px-4 py-16 text-center md:px-8">
+      <ConfettiBurst />
       <div className="editorial-panel w-full rounded-2xl p-8 md:p-10">
         <p className="font-ui text-xs tracking-[0.16em] text-gold">
           {isCashOnDelivery ? "ORDER RECEIVED" : "PAYMENT SUCCESS"}

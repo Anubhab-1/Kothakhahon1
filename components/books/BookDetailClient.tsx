@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRef } from "react";
 import {
   Barcode,
   BookOpenText,
@@ -27,6 +28,7 @@ import { getStockStatusLabel, isBookAvailableForSale } from "@/lib/inventory";
 import type { BookDetailView, RelatedBook } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import { getSiteUrlString } from "@/lib/env";
+import { useIntersectionObserver } from "@/lib/hooks/useIntersectionObserver";
 
 interface ReviewSnapshot {
   id: string;
@@ -68,6 +70,10 @@ export default function BookDetailClient({
       : book.stockStatus === "low_stock"
         ? `Only ${book.stockQuantity} copies are currently left in stock.`
         : `${book.stockQuantity} copies are currently available for dispatch.`;
+
+  // Sticky buy bar — shows on mobile when main CTA scrolls out of view
+  const buyButtonRef = useRef<HTMLDivElement>(null);
+  const buyButtonVisible = useIntersectionObserver(buyButtonRef, { threshold: 0 });
 
   const trustPromises = [
     {
@@ -186,7 +192,7 @@ export default function BookDetailClient({
             <p className="mt-3 max-w-2xl font-body text-base text-stone">
               {stockMessage}
             </p>
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div ref={buyButtonRef} className="mt-5 flex flex-wrap gap-3">
               <AddToCart
                 bookId={book.id}
                 title={book.title}
@@ -435,7 +441,12 @@ export default function BookDetailClient({
         </motion.section>
       </section>
 
-      <div className="fixed inset-x-3 bottom-3 z-50 rounded-xl border border-gold/60 bg-obsidian/95 p-3 backdrop-blur md:hidden">
+      {/* Sticky mobile buy bar — slides up when main CTA is out of view */}
+      <div
+        className={`fixed inset-x-3 bottom-3 z-50 rounded-xl border border-gold/60 bg-obsidian/95 p-3 backdrop-blur transition-all duration-300 md:hidden ${
+          buyButtonVisible ? "translate-y-24 opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
+        }`}
+      >
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-ui text-[10px] tracking-[0.13em] text-stone">PRICE</p>

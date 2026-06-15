@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatDisplayDate } from "@/lib/date";
 import { motion } from "@/components/ui/StaticMotion";
 import ShareButton from "@/components/ui/ShareButton";
+import { ReadingProgressBar } from "@/components/ui/ReadingProgressBar";
 import type { BlogPostCardView, BlogPostDetailView } from "@/lib/types";
 import { getSiteUrlString } from "@/lib/env";
 
@@ -24,8 +25,12 @@ export default function BlogPostClient({ post, relatedPosts }: BlogPostClientPro
     .map((section) => section.trim())
     .filter(Boolean);
 
+  const wordCount = post.body.split(/\s+/).filter(Boolean).length;
+  const readingMinutes = Math.max(1, Math.round(wordCount / 238));
+
   return (
     <article className="grain-overlay pb-20">
+      <ReadingProgressBar />
       <motion.header
         variants={reveal}
         initial="hidden"
@@ -38,7 +43,8 @@ export default function BlogPostClient({ post, relatedPosts }: BlogPostClientPro
           <h1 className="mt-3 text-safe font-title text-5xl text-ivory md:text-6xl">{post.title}</h1>
           <p className="mt-4 max-w-3xl font-body text-xl text-stone/90">{post.excerpt}</p>
           <p className="mt-4 font-mono text-xs text-stone">
-            {post.authorName} / {formatDisplayDate(post.publishedAt)}
+            {post.authorName} / {formatDisplayDate(post.publishedAt)}{" "}
+            <span className="opacity-60">· {readingMinutes} min read</span>
           </p>
           <div className="mt-5">
             <ShareButton

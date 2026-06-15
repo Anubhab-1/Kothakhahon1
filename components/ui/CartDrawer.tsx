@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, Trash2, X } from "lucide-react";
 import { useCart } from "@/components/providers/CartProvider";
 import { formatINR } from "@/lib/utils";
+import { INDIA_FREE_SHIPPING_THRESHOLD } from "@/lib/shipping";
 
 export default function CartDrawer() {
   const {
@@ -133,6 +134,31 @@ export default function CartDrawer() {
                 </div>
 
                 <div className="space-y-4 border-t border-smoke px-5 py-4">
+                  {/* Free shipping progress bar */}
+                  {subtotal < INDIA_FREE_SHIPPING_THRESHOLD ? (
+                    <div className="rounded-lg border border-smoke bg-ash/30 px-3 py-2.5">
+                      <p className="font-ui text-[10px] tracking-[0.12em] text-stone">
+                        Add{" "}
+                        <span className="text-gold">
+                          {formatINR(INDIA_FREE_SHIPPING_THRESHOLD - subtotal)}
+                        </span>{" "}
+                        more for <span className="text-gold">FREE SHIPPING</span>
+                      </p>
+                      <div className="mt-2 h-1 overflow-hidden rounded-full bg-smoke">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-gold-dim to-gold transition-all duration-500"
+                          style={{
+                            width: `${Math.min(100, (subtotal / INDIA_FREE_SHIPPING_THRESHOLD) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-gold/30 bg-gold/10 px-3 py-2">
+                      <p className="font-ui text-[10px] tracking-[0.12em] text-gold">✓ FREE SHIPPING UNLOCKED</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <p className="font-ui text-[11px] tracking-[0.13em] text-stone">SUBTOTAL</p>
                     <p className="text-safe font-title text-3xl text-ivory">{formatINR(subtotal)}</p>
