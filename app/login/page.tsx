@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BookOpenText, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
-import AuthSubmitButton from "@/components/auth/AuthSubmitButton";
-import { loginAction } from "@/app/auth/actions";
+import { ArrowRight, BookOpenText, ShieldCheck, Sparkles } from "lucide-react";
+import LoginFormClient from "@/components/auth/LoginFormClient";
 import { getSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 import styles from "./login.module.css";
@@ -138,67 +137,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </div>
             ) : null}
 
-            {params.error ? (
-              <div className="mt-5 rounded-[1.35rem] border border-ember/40 bg-ember/10 px-4 py-3 font-body text-sm text-ember backdrop-blur">
-                {params.error}
-              </div>
-            ) : null}
-
-            <form action={loginAction} className={cn(styles.formCard, "mt-6 space-y-5 p-5 sm:p-6")}>
-              <input type="hidden" name="next" value={next} />
-
-              <label className="block space-y-2">
-                <span className="font-ui text-[11px] tracking-[0.18em] text-parchment/76">EMAIL</span>
-                <span className={styles.inputShell}>
-                  <Mail aria-hidden className={cn(styles.inputIcon, "h-4 w-4")} />
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    autoComplete="email"
-                    className={styles.inputField}
-                    placeholder="you@example.com"
-                    suppressHydrationWarning
-                  />
-                </span>
-              </label>
-
-              <label className="block space-y-2">
-                <span className="font-ui text-[11px] tracking-[0.18em] text-parchment/76">PASSWORD</span>
-                <span className={styles.inputShell}>
-                  <LockKeyhole aria-hidden className={cn(styles.inputIcon, "h-4 w-4")} />
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    autoComplete="current-password"
-                    className={styles.inputField}
-                    placeholder="Enter your password"
-                    suppressHydrationWarning
-                  />
-                </span>
-              </label>
-
-              <div className="flex justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="font-ui text-[11px] tracking-[0.14em] text-stone transition hover:text-gold"
-                >
-                  FORGOT PASSWORD?
-                </Link>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-[1.2rem] border border-smoke/80 bg-white/4 px-4 py-3 text-sm text-stone backdrop-blur">
-                <ShieldCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-                <p className="font-body leading-relaxed">Your account opens the right area automatically based on role.</p>
-              </div>
-
-              <AuthSubmitButton
-                idleLabel="SIGN IN"
-                pendingLabel="SIGNING IN..."
-                className="w-full !py-3.5 shadow-[0_20px_36px_rgba(216,168,75,0.22)]"
-              />
-            </form>
+            <LoginFormClient nextPath={next} initialError={params.error} />
 
             <p className="mt-6 font-body text-sm text-stone">
               New here?{" "}

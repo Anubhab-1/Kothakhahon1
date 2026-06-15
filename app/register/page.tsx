@@ -20,6 +20,8 @@ interface RegisterPageProps {
   }>;
 }
 
+import RegisterFormClient from "@/components/auth/RegisterFormClient";
+
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
   const [session, params] = await Promise.all([getSession(), searchParams]);
 
@@ -55,63 +57,10 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
               Customer accounts are standard by default. Admin access is added only by role.
             </p>
 
-            {params.error ? (
-              <div className="mt-5 rounded-2xl border border-ember/40 bg-ember/10 px-4 py-3 font-body text-sm text-ember">
-                {params.error}
-              </div>
-            ) : null}
+            <div className="mt-6">
+              <RegisterFormClient initialError={params.error} />
+            </div>
 
-            <form action={registerAction} className="mt-6 space-y-5 rounded-[28px] border border-smoke bg-void/80 p-6">
-              <label className="block space-y-2">
-                <span className="font-ui text-xs tracking-[0.14em] text-parchment">FULL NAME</span>
-                <input
-                  type="text"
-                  name="fullName"
-                  required
-                  autoComplete="name"
-                  className="w-full rounded-xl border border-smoke bg-obsidian px-3 py-2.5 font-body text-base text-ivory outline-none ring-gold transition focus:ring-1"
-                  placeholder="Your full name"
-                />
-              </label>
-
-              <label className="block space-y-2">
-                <span className="font-ui text-xs tracking-[0.14em] text-parchment">EMAIL</span>
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  autoComplete="email"
-                  className="w-full rounded-xl border border-smoke bg-obsidian px-3 py-2.5 font-body text-base text-ivory outline-none ring-gold transition focus:ring-1"
-                  placeholder="you@example.com"
-                />
-              </label>
-
-              <label className="block space-y-2">
-                <span className="font-ui text-xs tracking-[0.14em] text-parchment">PASSWORD</span>
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  autoComplete="new-password"
-                  className="w-full rounded-xl border border-smoke bg-obsidian px-3 py-2.5 font-body text-base text-ivory outline-none ring-gold transition focus:ring-1"
-                  placeholder="At least 8 characters"
-                />
-              </label>
-
-              <label className="block space-y-2">
-                <span className="font-ui text-xs tracking-[0.14em] text-parchment">CONFIRM PASSWORD</span>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  required
-                  autoComplete="new-password"
-                  className="w-full rounded-xl border border-smoke bg-obsidian px-3 py-2.5 font-body text-base text-ivory outline-none ring-gold transition focus:ring-1"
-                  placeholder="Repeat your password"
-                />
-              </label>
-
-              <AuthSubmitButton idleLabel="CREATE ACCOUNT" pendingLabel="CREATING..." className="w-full" />
-            </form>
 
             <p className="mt-5 font-body text-sm text-stone">
               Already have an account?{" "}

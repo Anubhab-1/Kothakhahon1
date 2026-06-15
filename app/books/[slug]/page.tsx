@@ -117,6 +117,8 @@ async function getBookData(slug: string, userId?: string) {
   };
 }
 
+import { env } from "@/lib/env";
+
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const { slug } = await params;
   const session = await getSession();
@@ -126,15 +128,83 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     notFound();
   }
 
+  // Resolve cover image absolute URL
+  const coverUrl = bookData.book.coverImageUrl
+    ? (bookData.book.coverImageUrl.startsWith("http")
+      ? bookData.book.coverImageUrl
+      : `${env.SITE_URL}${bookData.book.coverImageUrl.startsWith("/") ? "" : "/"}${bookData.book.coverImageUrl}`)
+    : `${env.SITE_URL}/opengraph-image`;
+
+  // Build JSON-LD structured schema for rich snippets (Search Console & Google Shopping)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    "name": bookData.book.title,
+    "description": bookData.book.synopsis,
+    "image": coverUrl,
+    "isbn": bookData.book.isbn || undefined,
+    "inLanguage": bookData.book.language || "Bengali",
+    "numberOfPages": bookData.book.pageCount || undefined,
+    "datePublished": bookData.book.publicationDate
+      ? new Date(bookData.book.publicationDate).toISOString().split('T')[0]
+      : undefined,
+    "author": {
+      "@type": "Person",
+      "name": bookData.book.authorName,
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": bookData.book.price,
+      "priceCurrency": "INR",
+      "availability": bookData.book.stockQuantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      "url": `${env.SITE_URL}/books/${bookData.book.slug}`,
+    },
+    ...(bookData.book.reviewCount > 0
+      ? {
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": bookData.book.averageRating,
+            "reviewCount": bookData.book.reviewCount,
+            "bestRating": "5",
+            "worstRating": "1",
+          },
+        }
+      : {}),
+    ...(bookData.reviews.length > 0
+      ? {
+          "review": bookData.reviews.map((r) => ({
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": r.reviewerName,
+            },
+            "reviewRating": {
+              "@type": "Rating",
+              "ratingValue": r.rating,
+              "bestRating": "5",
+              "worstRating": "1",
+            },
+            "reviewBody": r.body,
+          })),
+        }
+      : {}),
+  };
+
   return (
-    <BookDetailClient
-      book={bookData.book}
-      relatedBooks={bookData.related}
-      isSaved={bookData.isSaved}
-      isLoggedIn={!!session}
-      reviews={bookData.reviews}
-      hasReviewed={bookData.hasReviewed}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <BookDetailClient
+        book={bookData.book}
+        relatedBooks={bookData.related}
+        isSaved={bookData.isSaved}
+        isLoggedIn={!!session}
+        reviews={bookData.reviews}
+        hasReviewed={bookData.hasReviewed}
+      />
+    </>
   );
 }
 

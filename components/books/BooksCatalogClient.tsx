@@ -304,23 +304,54 @@ function BooksCatalogStateful({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-smoke/70 pt-4">
-            <span className="font-ui text-[10px] tracking-[0.14em] text-stone">ACTIVE SHELF</span>
-            <span className="rounded-full border border-smoke px-3 py-1 font-ui text-[10px] tracking-[0.13em] text-parchment">
-              {selectedGenre === "all" ? "ALL PROGRAMS" : selectedGenre.toUpperCase()}
-            </span>
-            <span className="rounded-full border border-smoke px-3 py-1 font-ui text-[10px] tracking-[0.13em] text-parchment">
-              {formatPriceFilterLabel(priceFilter).toUpperCase()}
-            </span>
-            <span className="rounded-full border border-smoke px-3 py-1 font-ui text-[10px] tracking-[0.13em] text-parchment">
-              {formatSortLabel(sortOption).toUpperCase()}
-            </span>
-            {searchTerm.trim() ? (
-              <span className="rounded-full border border-gold/35 bg-gold/10 px-3 py-1 font-ui text-[10px] tracking-[0.13em] text-gold">
-                QUERY: {searchTerm.trim().toUpperCase()}
-              </span>
-            ) : null}
-            {hasActiveFilters ? (
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-smoke/70 pt-4">
+              <span className="font-ui text-[10px] tracking-[0.14em] text-stone">ACTIVE FILTERS</span>
+
+              {selectedGenre !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedGenre("all"); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-gold transition hover:bg-gold/20"
+                >
+                  {selectedGenre.toUpperCase()}
+                  <span aria-hidden className="opacity-70">×</span>
+                </button>
+              )}
+
+              {priceFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => { setPriceFilter("all"); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-gold transition hover:bg-gold/20"
+                >
+                  {formatPriceFilterLabel(priceFilter).toUpperCase()}
+                  <span aria-hidden className="opacity-70">×</span>
+                </button>
+              )}
+
+              {sortOption !== "newest" && (
+                <button
+                  type="button"
+                  onClick={() => { setSortOption("newest"); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-smoke bg-obsidian px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-parchment transition hover:border-gold hover:text-gold"
+                >
+                  {formatSortLabel(sortOption).toUpperCase()}
+                  <span aria-hidden className="opacity-70">×</span>
+                </button>
+              )}
+
+              {searchTerm.trim() && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-gold transition hover:bg-gold/20"
+                >
+                  QUERY: {searchTerm.trim().toUpperCase()}
+                  <span aria-hidden className="opacity-70">×</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
@@ -330,12 +361,13 @@ function BooksCatalogStateful({
                   setSortOption("newest");
                   setCurrentPage(1);
                 }}
-                className="ml-auto rounded-full border border-gold/40 px-3 py-1 font-ui text-[10px] tracking-[0.13em] text-gold transition hover:bg-gold hover:text-void"
+                className="ml-auto rounded-full border border-ember/40 px-3 py-1 font-ui text-[10px] tracking-[0.13em] text-ember/80 transition hover:border-ember hover:text-ember"
               >
-                RESET SHELF
+                CLEAR ALL
               </button>
-            ) : null}
-          </div>
+            </div>
+          )}
+
         </div>
       </section>
 

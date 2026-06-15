@@ -25,7 +25,7 @@ export default function ScrollToTop() {
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.2 }}
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fx-button fixed right-4 bottom-5 z-40 hidden h-10 w-10 items-center justify-center rounded-full border border-gold/65 bg-obsidian/95 text-gold shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur hover:bg-ash md:inline-flex"
+          className="fx-button fixed right-4 bottom-5 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-gold/65 bg-obsidian/95 text-gold shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur hover:bg-ash"
         >
           <ArrowUp className="h-4 w-4" />
         </motion.button>
