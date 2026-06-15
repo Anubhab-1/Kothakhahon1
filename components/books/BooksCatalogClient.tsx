@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { Search, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import type { CatalogBook } from "@/lib/types";
 import CatalogBookCard from "@/components/books/CatalogBookCard";
@@ -126,6 +126,18 @@ function BooksCatalogStateful({
   const [sortOption, setSortOption] = useState<SortOption>(initialSort);
   const [priceFilter, setPriceFilter] = useState<PriceFilter>(initialPriceFilter);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setIsSortOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const genres = useMemo(() => {
     const genreSet = new Set<string>();
@@ -204,36 +216,98 @@ function BooksCatalogStateful({
   return (
 
     <div className="mx-auto w-full max-w-7xl px-4 py-10 md:px-8 md:py-12">
-      <section className="rounded-2xl border border-smoke bg-void/95 p-4 backdrop-blur md:p-5">
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => {
-                setSearchTerm(event.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search title, author, or genre..."
-              className="w-full rounded-md border border-smoke bg-obsidian px-9 py-2.5 font-body text-base text-ivory outline-none ring-gold transition focus:ring-1"
-            />
+      <section className="border-b border-smoke bg-transparent pb-8 pt-2">
+        <div className="space-y-6">
+          {/* Top Row: Search & Sort */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            {/* Minimal Search Bar */}
+            <div className="relative flex-1 max-w-md group">
+              <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-stone/80 group-focus-within:text-gold transition-colors duration-300" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search title, author, or genre..."
+                className="w-full border-b border-smoke/70 bg-transparent pl-7 pr-8 py-2 font-body text-base text-ivory outline-none transition-all duration-300 focus:border-gold placeholder:text-stone/50"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-stone/70 hover:text-gold transition-colors duration-200 font-sans text-base leading-none cursor-pointer"
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            {/* Sleek Custom Sort Dropdown */}
+            <div className="flex items-center gap-3 self-start md:self-auto" ref={sortDropdownRef}>
+              <span className="font-ui text-[9px] tracking-[0.18em] text-stone">SORT</span>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsSortOpen(!isSortOpen)}
+                  className="flex items-center gap-4 px-3 py-1.5 border border-smoke/75 rounded-md font-ui text-[9px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold transition-all duration-200 cursor-pointer min-w-[155px] justify-between uppercase"
+                >
+                  <span>{formatSortLabel(sortOption)}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 text-stone/80 transition-transform duration-300 ${isSortOpen ? 'rotate-180 text-gold' : ''}`} />
+                </button>
+
+                {isSortOpen && (
+                  <div className="absolute right-0 mt-1.5 w-48 bg-void/98 border border-smoke/80 rounded-md shadow-2xl backdrop-blur-md z-30 overflow-hidden py-1 reveal-up">
+                    {(["newest", "oldest", "price-low", "price-high", "title-az"] as SortOption[]).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => {
+                          setSortOption(option);
+                          setIsSortOpen(false);
+                          setCurrentPage(1);
+                        }}
+                        className={`w-full text-left px-4 py-2 font-ui text-[9px] tracking-[0.12em] uppercase transition-colors duration-150 cursor-pointer ${
+                          sortOption === option
+                            ? "bg-gold/8 text-gold font-medium"
+                            : "text-stone hover:bg-ash/50 hover:text-gold"
+                        }`}
+                      >
+                        {formatSortLabel(option)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                <SlidersHorizontal className="h-4 w-4 shrink-0 text-gold" />
+          {/* Bottom Row: Filter lists */}
+          <div className="space-y-4">
+            {/* Genre Filter Tabs Wrapper with Fade Gradients */}
+            <div className="relative -mx-4 md:-mx-8">
+              {/* Left fade indicator */}
+              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-void via-void/40 to-transparent z-10" />
+              {/* Right fade indicator */}
+              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-void via-void/40 to-transparent z-10" />
+
+              <div className="flex items-center gap-4 overflow-x-auto px-6 md:px-10 pb-2 scrollbar-none">
+                <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-gold/75 mr-1" />
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedGenre("all");
                     setCurrentPage(1);
                   }}
-                  className={`fx-button shrink-0 rounded-full border px-3 py-1.5 font-ui text-[11px] tracking-[0.12em] transition ${
+                  className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] tracking-[0.16em] uppercase transition duration-200 ${
                     selectedGenre === "all"
-                      ? "border-gold bg-gold text-void"
-                      : "border-smoke bg-obsidian text-parchment hover:border-gold hover:text-gold"
+                      ? "border-gold text-gold font-semibold"
+                      : "border-transparent text-stone hover:text-gold"
                   }`}
                 >
                   ALL
@@ -247,75 +321,58 @@ function BooksCatalogStateful({
                       setSelectedGenre(genre);
                       setCurrentPage(1);
                     }}
-                    className={`fx-button shrink-0 rounded-full border px-3 py-1.5 font-ui text-[11px] tracking-[0.12em] transition ${
+                    className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] tracking-[0.16em] uppercase transition duration-200 ${
                       selectedGenre === genre
-                        ? "border-gold bg-gold text-void"
-                        : "border-smoke bg-obsidian text-parchment hover:border-gold hover:text-gold"
+                        ? "border-gold text-gold font-semibold"
+                        : "border-transparent text-stone hover:text-gold"
                     }`}
                   >
                     {genre}
                   </button>
                 ))}
               </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-ui text-[11px] tracking-[0.12em] text-stone">PRICE</span>
-                {[
-                  { value: "all", label: "All Prices" },
-                  { value: "under-400", label: "Under INR 400" },
-                  { value: "400-600", label: "INR 400-600" },
-                  { value: "above-600", label: "Above INR 600" },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      setPriceFilter(option.value as PriceFilter);
-                      setCurrentPage(1);
-                    }}
-                    className={`fx-button rounded-full border px-3 py-1.5 font-ui text-[10px] tracking-[0.12em] transition ${
-                      priceFilter === option.value
-                        ? "border-gold bg-gold text-void"
-                        : "border-smoke bg-obsidian text-parchment hover:border-gold hover:text-gold"
-                    }`}
-                  >
-                    {option.label.toUpperCase()}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="font-ui text-[11px] tracking-[0.12em] text-stone">SORT</label>
-              <select
-                value={sortOption}
-                onChange={(event) => {
-                  setSortOption(event.target.value as SortOption);
-                  setCurrentPage(1);
-                }}
-                className="rounded-md border border-smoke bg-obsidian px-3 py-2 font-body text-sm text-ivory outline-none ring-gold transition focus:ring-1"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="title-az">Title: A to Z</option>
-              </select>
+            {/* Price Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-smoke/35">
+              <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-2">PRICE</span>
+              {[
+                { value: "all", label: "All Prices" },
+                { value: "under-400", label: "Under ₹400" },
+                { value: "400-600", label: "₹400 - ₹600" },
+                { value: "above-600", label: "Above ₹600" },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setPriceFilter(option.value as PriceFilter);
+                    setCurrentPage(1);
+                  }}
+                  className={`rounded-full border px-3 py-1 font-ui text-[9px] tracking-[0.14em] transition ${
+                    priceFilter === option.value
+                      ? "border-gold/60 bg-gold/8 text-gold font-medium"
+                      : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
+                  }`}
+                >
+                  {option.label.toUpperCase()}
+                </button>
+              ))}
             </div>
           </div>
 
           {hasActiveFilters && (
             <div className="flex flex-wrap items-center gap-2 border-t border-smoke/70 pt-4">
-              <span className="font-ui text-[10px] tracking-[0.14em] text-stone">ACTIVE FILTERS</span>
+              <span className="font-ui text-[9px] tracking-[0.16em] text-stone">ACTIVE FILTERS</span>
 
               {selectedGenre !== "all" && (
                 <button
                   type="button"
                   onClick={() => { setSelectedGenre("all"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-gold transition hover:bg-gold/20"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   {selectedGenre.toUpperCase()}
-                  <span aria-hidden className="opacity-70">×</span>
+                  <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
                 </button>
               )}
 
@@ -323,10 +380,10 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setPriceFilter("all"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-gold transition hover:bg-gold/20"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   {formatPriceFilterLabel(priceFilter).toUpperCase()}
-                  <span aria-hidden className="opacity-70">×</span>
+                  <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
                 </button>
               )}
 
@@ -334,10 +391,10 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setSortOption("newest"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-smoke bg-obsidian px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-parchment transition hover:border-gold hover:text-gold"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-smoke/70 bg-transparent px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-stone transition-all duration-200 hover:border-gold/40 hover:text-gold cursor-pointer"
                 >
                   {formatSortLabel(sortOption).toUpperCase()}
-                  <span aria-hidden className="opacity-70">×</span>
+                  <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
                 </button>
               )}
 
@@ -345,10 +402,10 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 font-ui text-[10px] tracking-[0.12em] text-gold transition hover:bg-gold/20"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   QUERY: {searchTerm.trim().toUpperCase()}
-                  <span aria-hidden className="opacity-70">×</span>
+                  <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
                 </button>
               )}
 
@@ -361,7 +418,7 @@ function BooksCatalogStateful({
                   setSortOption("newest");
                   setCurrentPage(1);
                 }}
-                className="ml-auto rounded-full border border-ember/40 px-3 py-1 font-ui text-[10px] tracking-[0.13em] text-ember/80 transition hover:border-ember hover:text-ember"
+                className="ml-auto font-ui text-[9px] tracking-[0.14em] text-stone hover:text-ember transition-colors duration-200 cursor-pointer border-b border-transparent hover:border-ember pb-0.5"
               >
                 CLEAR ALL
               </button>
