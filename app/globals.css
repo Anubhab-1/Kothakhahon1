@@ -384,43 +384,43 @@ body {
 /* ── CSS custom properties ────────────────────────────────── */
 .admin-theme {
   /* Backgrounds */
-  --adm-bg:          #0d0f14;   /* deepest void */
-  --adm-surface:     #13161e;   /* base surface */
-  --adm-surface-2:   #181c27;   /* card surface */
-  --adm-surface-3:   #1e2233;   /* elevated card */
-  --adm-sidebar:     #0f111a;   /* sidebar */
+  --adm-bg:          #0a0908;   /* warmest void */
+  --adm-surface:     #100e0c;   /* base surface */
+  --adm-surface-2:   #161311;   /* card surface */
+  --adm-surface-3:   #1c1815;   /* elevated card */
+  --adm-sidebar:     #0e0c0b;   /* sidebar */
 
   /* Borders */
-  --adm-border:      rgba(99, 102, 241, 0.12);   /* default border */
-  --adm-border-2:    rgba(255, 255, 255, 0.06);  /* subtle border */
-  --adm-border-3:    rgba(99, 102, 241, 0.28);   /* focused border */
+  --adm-border:      rgba(201, 151, 58, 0.15);   /* gold-tinted border */
+  --adm-border-2:    rgba(255, 255, 255, 0.05);  /* subtle border */
+  --adm-border-3:    rgba(201, 151, 58, 0.4);    /* focused border */
 
-  /* Accent — Indigo / Violet */
-  --adm-accent:      #6366f1;   /* indigo-500 */
-  --adm-accent-dim:  #4f46e5;   /* indigo-600 */
-  --adm-accent-glow: rgba(99, 102, 241, 0.22);
-  --adm-violet:      #8b5cf6;   /* violet-500 */
-  --adm-cyan:        #22d3ee;   /* cyan-400  */
+  /* Accent — Gold / Warm Amber */
+  --adm-accent:      #c9973a;   /* gold */
+  --adm-accent-dim:  #b98e3a;   /* gold-dim */
+  --adm-accent-glow: rgba(201, 151, 58, 0.22);
+  --adm-violet:      #dfb362;   /* warm bright gold/ivory accent */
+  --adm-cyan:        #e0d5c1;   /* parchment/ivory highlights */
 
   /* Success / Warning / Error */
   --adm-success:     #10b981;   /* emerald-500 */
   --adm-success-bg:  rgba(16, 185, 129, 0.12);
-  --adm-warning:     #f59e0b;   /* amber-400 */
-  --adm-warning-bg:  rgba(245, 158, 11, 0.12);
-  --adm-error:       #f43f5e;   /* rose-500 */
-  --adm-error-bg:    rgba(244, 63, 94, 0.12);
+  --adm-warning:     #dfb362;   /* gold/amber warning */
+  --adm-warning-bg:  rgba(223, 179, 98, 0.12);
+  --adm-error:       #ef4444;   /* red */
+  --adm-error-bg:    rgba(239, 68, 68, 0.12);
 
   /* Text */
-  --adm-text-primary:   #f0f2ff; /* near-white with blue tint */
-  --adm-text-secondary: #94a3b8; /* slate-400 */
-  --adm-text-muted:     #64748b; /* slate-500 */
-  --adm-text-accent:    #a5b4fc; /* indigo-300 */
+  --adm-text-primary:   #faf6ef; /* ivory */
+  --adm-text-secondary: #d4c9bb; /* parchment */
+  --adm-text-muted:     #8c8275; /* stone */
+  --adm-text-accent:    #dfb362; /* bright gold */
 
   /* Shadows */
   --adm-shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.4);
   --adm-shadow-md:  0 8px 24px rgba(0, 0, 0, 0.5);
   --adm-shadow-lg:  0 20px 48px rgba(0, 0, 0, 0.6);
-  --adm-shadow-glow: 0 0 32px rgba(99, 102, 241, 0.18);
+  --adm-shadow-glow: 0 0 32px rgba(201, 151, 58, 0.18);
 
   /* Keep legacy aliases so existing TSX still compiles */
   --ink:    var(--adm-text-primary);
@@ -491,7 +491,7 @@ body {
   gap: 0.65rem;
   border: 1px solid var(--adm-border-2);
   border-radius: 12px;
-  background: rgba(99, 102, 241, 0.06);
+  background: rgba(201, 151, 58, 0.06);
   padding: 0.65rem 1rem;
   font-size: 0.82rem;
   font-weight: 500;
@@ -500,7 +500,7 @@ body {
   transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
 }
 .admin-mini-card:hover {
-  background: rgba(99, 102, 241, 0.12);
+  background: rgba(201, 151, 58, 0.12);
   border-color: var(--adm-border-3);
   color: var(--adm-text-primary);
 }
@@ -549,7 +549,7 @@ body {
 }
 .admin-sidebar-link:hover {
   border-color: var(--adm-border);
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(201, 151, 58, 0.08);
   color: var(--adm-text-primary);
   transform: translateX(3px);
 }
@@ -558,7 +558,7 @@ body {
 }
 .admin-sidebar-link-active {
   border-color: var(--adm-border-3);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.12) 100%);
+  background: linear-gradient(135deg, rgba(201, 151, 58, 0.18) 0%, rgba(223, 179, 98, 0.12) 100%);
   color: var(--adm-text-accent);
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -589,9 +589,9 @@ body {
 .admin-button:hover,
 .admin-link-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.36);
-  background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
-  border-color: #818cf8;
+  box-shadow: 0 8px 24px rgba(201, 151, 58, 0.36);
+  background: linear-gradient(135deg, #dfb362 0%, #c9973a 100%);
+  border-color: #dfb362;
 }
 .admin-button:active,
 .admin-link-button:active {
@@ -613,7 +613,7 @@ body {
 }
 .admin-button-secondary:hover {
   border-color: var(--adm-border-3);
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(201, 151, 58, 0.08);
   color: var(--adm-text-primary);
   box-shadow: none;
   transform: translateY(-1px);
@@ -670,7 +670,7 @@ body {
 .admin-textarea:focus {
   border-color: var(--adm-accent);
   background: rgba(13, 15, 20, 0.95);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  box-shadow: 0 0 0 3px rgba(201, 151, 58, 0.18);
 }
 .admin-textarea {
   resize: vertical;
@@ -694,7 +694,7 @@ body {
   font-size: 0.9rem;
 }
 .admin-table thead {
-  background: rgba(99, 102, 241, 0.05);
+  background: rgba(201, 151, 58, 0.05);
 }
 .admin-table th {
   padding: 0.875rem 1.25rem;
@@ -716,7 +716,7 @@ body {
   transition: background 150ms ease;
 }
 .admin-table tbody tr:hover {
-  background: rgba(99, 102, 241, 0.04);
+  background: rgba(201, 151, 58, 0.04);
 }
 
 /* ── Status pills ──────────────────────────────────────────── */
@@ -725,8 +725,8 @@ body {
   align-items: center;
   gap: 0.3rem;
   border-radius: 999px;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(201, 151, 58, 0.25);
+  background: rgba(201, 151, 58, 0.1);
   padding: 0.2rem 0.65rem;
   font-size: 0.68rem;
   font-weight: 700;

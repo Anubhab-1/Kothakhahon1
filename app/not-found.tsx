@@ -1,37 +1,54 @@
+"use client";
+
 import Link from "next/link";
-import { Compass, Home } from "lucide-react";
+import { Compass, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function NotFound() {
   return (
-    <div className="relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-16 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-gold/12 blur-3xl" />
-      <div className="mx-auto flex min-h-[68vh] w-full max-w-4xl flex-col items-center justify-center px-4 py-16 text-center md:px-8">
-        <div className="fx-card rounded-3xl border border-smoke bg-obsidian/75 p-10 backdrop-blur md:p-14">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-gold/45 bg-void/70 text-gold">
-            <Compass className="h-6 w-6" />
-          </div>
-          <p className="mt-5 font-ui text-xs tracking-[0.22em] text-gold">ERROR 404</p>
-          <h1 className="mt-3 font-title text-6xl leading-none text-ivory md:text-7xl">Lost In The Stacks</h1>
-          <p className="mx-auto mt-4 max-w-2xl font-body text-lg text-stone">
-            The page you requested could not be found. It may have moved, or the link may be outdated.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/"
-              className="fx-button inline-flex items-center gap-2 rounded-full border border-gold bg-gold px-6 py-3 font-ui text-xs tracking-[0.16em] text-void transition hover:bg-gold-dim"
-            >
-              <Home className="h-4 w-4" />
-              BACK HOME
-            </Link>
-            <Link
-              href="/books"
-              className="fx-button rounded-full border border-smoke bg-void px-6 py-3 font-ui text-xs tracking-[0.16em] text-parchment transition hover:border-gold hover:text-gold"
-            >
-              BROWSE BOOKS
-            </Link>
-          </div>
+    <div className="grain-overlay relative min-h-[75vh] flex items-center justify-center px-4 py-16">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(circle_at_center,rgba(216,168,75,0.12),transparent_70%)]" />
+      
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-lg rounded-3xl border border-smoke/70 bg-obsidian/80 p-8 sm:p-12 text-center shadow-[0_22px_60px_rgba(0,0,0,0.4)] backdrop-blur-md"
+      >
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-gold/45 bg-gold/5 text-gold shadow-[0_0_15px_rgba(201,151,58,0.15)]">
+          <Compass className="h-7 w-7" style={{ animation: "spin 20s linear infinite" }} />
         </div>
-      </div>
+        
+        <p className="mt-6 font-ui text-[10px] tracking-[0.24em] text-gold uppercase">ERROR 404</p>
+        <h1 className="mt-3 font-title text-4xl text-ivory sm:text-5xl">Lost In The Stacks</h1>
+        
+        <p className="mt-4 font-body text-base text-stone leading-relaxed">
+          The shelf or page you are looking for does not exist in our catalog. It may have been relocated, or the binding link has expired.
+        </p>
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row justify-center">
+          <Link
+            href="/"
+            className="fx-button flex items-center justify-center gap-2 rounded-full border border-gold bg-gold px-6 py-3 font-ui text-xs tracking-[0.16em] text-void transition hover:bg-gold-dim"
+          >
+            RETURN HOME
+          </Link>
+          <Link
+            href="/books"
+            className="fx-button flex items-center justify-center gap-2 rounded-full border border-smoke bg-void/60 px-6 py-3 font-ui text-xs tracking-[0.16em] text-parchment transition hover:border-gold hover:text-gold"
+          >
+            BROWSE CATALOG
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      </motion.div>
+      
+      <style jsx global>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

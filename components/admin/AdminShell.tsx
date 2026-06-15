@@ -43,8 +43,8 @@ export default function AdminShell({
         <aside
           style={{
             background:
-              "linear-gradient(180deg, #0c0e16 0%, #0f1120 60%, #0c0e16 100%)",
-            borderRight: "1px solid rgba(99,102,241,0.1)",
+              "linear-gradient(180deg, #0a0908 0%, #100e0c 60%, #0a0908 100%)",
+            borderRight: "1px solid rgba(201,151,58,0.15)",
           }}
           className="flex flex-col min-h-screen p-5 gap-0"
         >
@@ -53,24 +53,24 @@ export default function AdminShell({
             href="/admin"
             style={{
               background:
-                "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.10) 100%)",
-              border: "1px solid rgba(99,102,241,0.22)",
+                "linear-gradient(135deg, rgba(201,151,58,0.15) 0%, rgba(223,179,98,0.10) 100%)",
+              border: "1px solid rgba(201,151,58,0.22)",
               borderRadius: "18px",
-              boxShadow: "0 8px 32px rgba(99,102,241,0.12)",
+              boxShadow: "0 8px 32px rgba(201,151,58,0.12)",
             }}
-            className="block p-5 transition-all duration-300 hover:border-indigo-400/40 hover:shadow-[0_12px_40px_rgba(99,102,241,0.22)]"
+            className="block p-5 transition-all duration-300 hover:border-gold/40 hover:shadow-[0_12px_40px_rgba(201,151,58,0.22)]"
           >
             <div className="flex items-center gap-3 mb-3">
               <div
                 style={{
                   background:
-                    "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                    "linear-gradient(135deg, #c9973a, #dfb362)",
                   borderRadius: "10px",
                   padding: "7px",
-                  boxShadow: "0 4px 12px rgba(99,102,241,0.4)",
+                  boxShadow: "0 4px 12px rgba(201,151,58,0.4)",
                 }}
               >
-                <BookOpen className="h-5 w-5 text-white" />
+                <BookOpen className="h-5 w-5 text-void" />
               </div>
               <div>
                 <p
@@ -79,7 +79,7 @@ export default function AdminShell({
                     fontWeight: 700,
                     letterSpacing: "0.2em",
                     textTransform: "uppercase",
-                    background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                    background: "linear-gradient(90deg, #c9973a, #dfb362)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                   }}
@@ -120,7 +120,7 @@ export default function AdminShell({
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="admin-mini-card">
                 <Icon
-                  style={{ width: 14, height: 14, color: "#6366f1", flexShrink: 0 }}
+                  style={{ width: 14, height: 14, color: "#c9973a", flexShrink: 0 }}
                 />
                 <span style={{ fontSize: "0.78rem" }}>{label}</span>
               </div>
@@ -160,12 +160,12 @@ export default function AdminShell({
                 gap: "0.5rem",
                 padding: "0.5rem 0.75rem",
                 borderRadius: "10px",
-                background: "rgba(99,102,241,0.05)",
-                border: "1px solid rgba(99,102,241,0.08)",
+                background: "rgba(201,151,58,0.05)",
+                border: "1px solid rgba(201,151,58,0.08)",
               }}
             >
-              <Shield style={{ width: 13, height: 13, color: "#6366f1" }} />
-              <span style={{ fontSize: "0.7rem", color: "#3d4460", fontWeight: 600 }}>
+              <Shield style={{ width: 13, height: 13, color: "#c9973a" }} />
+              <span style={{ fontSize: "0.7rem", color: "#8c8275", fontWeight: 600 }}>
                 Internal Workspace
               </span>
             </div>
@@ -183,9 +183,9 @@ export default function AdminShell({
               background: "rgba(13,15,20,0.82)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
-              borderBottom: "1px solid rgba(99,102,241,0.1)",
+              borderBottom: "1px solid rgba(201,151,58,0.15)",
               padding: "0.875rem 2rem",
-              boxShadow: "0 1px 0 rgba(99,102,241,0.06)",
+              boxShadow: "0 1px 0 rgba(201,151,58,0.06)",
             }}
           >
             <div className="flex items-center justify-between gap-4">
@@ -233,8 +233,8 @@ export default function AdminShell({
                     gap: "0.75rem",
                     padding: "0.45rem 0.9rem 0.45rem 0.45rem",
                     borderRadius: "999px",
-                    background: "rgba(99,102,241,0.08)",
-                    border: "1px solid rgba(99,102,241,0.16)",
+                    background: "rgba(201,151,58,0.08)",
+                    border: "1px solid rgba(201,151,58,0.16)",
                   }}
                 >
                   <div
@@ -242,13 +242,13 @@ export default function AdminShell({
                       width: 30,
                       height: 30,
                       borderRadius: "50%",
-                      background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                      background: "linear-gradient(135deg, #c9973a, #dfb362)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       fontSize: "0.68rem",
                       fontWeight: 800,
-                      color: "#fff",
+                      color: "#16130d",
                       letterSpacing: "0.04em",
                       flexShrink: 0,
                     }}
@@ -260,7 +260,7 @@ export default function AdminShell({
                       style={{
                         fontSize: "0.78rem",
                         fontWeight: 700,
-                        color: "#a5b4fc",
+                        color: "#dfb362",
                         lineHeight: 1.2,
                       }}
                     >

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { AlertOctagon, RotateCcw } from "lucide-react";
 
 export default function GlobalError({
   error,
@@ -15,20 +16,26 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a] text-[#dbb56f] font-sans antialiased">
-        <div className="flex flex-col items-center justify-center space-y-6 text-center max-w-md p-8 border border-[#2a2a2a] rounded-lg bg-[#111] shadow-xl">
-          <h2 className="text-3xl font-serif tracking-widest text-red-500">
-            System Failure
-          </h2>
-          <p className="text-sm opacity-80 leading-relaxed font-mono">
-            A critical error occurred while loading the application shell. Our systems have logged the fault.
+      <body className="flex min-h-screen items-center justify-center bg-[#0a0908] px-4 text-[#d4c9bb] font-sans antialiased">
+        <div className="relative w-full max-w-md rounded-3xl border border-[#c9973a]/20 bg-[#161311] p-8 sm:p-10 text-center shadow-[0_22px_60px_rgba(0,0,0,0.6)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#ef4444]/45 bg-[#ef4444]/5 text-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+            <AlertOctagon className="h-7 w-7" />
+          </div>
+
+          <p className="mt-6 font-mono text-[9px] tracking-[0.24em] text-[#ef4444] uppercase font-bold">FATAL FAULT</p>
+          <h2 className="mt-3 font-serif text-3xl text-[#faf6ef]">Root Shell Failure</h2>
+
+          <p className="mt-4 text-sm text-[#8c8275] leading-relaxed">
+            A critical error occurred while loading the application container. The system has logged the exception.
           </p>
-          <div className="flex gap-4 pt-4">
+
+          <div className="mt-8">
             <button
               onClick={() => reset()}
-              className="px-6 py-2 border border-[#dbb56f]/30 hover:border-[#dbb56f] hover:bg-[#dbb56f]/5 transition-all text-sm uppercase tracking-wider"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-[#c9973a] bg-[#c9973a] px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#16130d] transition-all hover:bg-[#b98e3a] cursor-pointer"
             >
-              Attempt Recovery
+              <RotateCcw className="h-3.5 w-3.5" />
+              ATTEMPT RECOVERY
             </button>
           </div>
         </div>
