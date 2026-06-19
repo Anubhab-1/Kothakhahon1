@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import AuthSubmitButton from "./AuthSubmitButton";
 import { registerAction } from "@/app/auth/actions";
-import { Eye, EyeOff, ShieldAlert, CheckCircle, HelpCircle } from "lucide-react";
+import { Eye, EyeOff, ShieldAlert, CheckCircle } from "lucide-react";
+import Turnstile from "@/components/ui/Turnstile";
 
 interface RegisterFormClientProps {
   initialError?: string;
@@ -18,6 +19,7 @@ export default function RegisterFormClient({ initialError }: RegisterFormClientP
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
   const [clientError, setClientError] = useState("");
   const [shake, setShake] = useState(!!initialError);
 
@@ -57,6 +59,13 @@ export default function RegisterFormClient({ initialError }: RegisterFormClientP
     if (password !== confirmPassword) {
       e.preventDefault();
       setClientError("Passwords do not match.");
+      setShake(true);
+      return;
+    }
+
+    if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken) {
+      e.preventDefault();
+      setClientError("Please complete the CAPTCHA.");
       setShake(true);
       return;
     }
@@ -194,6 +203,9 @@ export default function RegisterFormClient({ initialError }: RegisterFormClientP
             </div>
           )}
         </label>
+
+        <Turnstile onChange={setCaptchaToken} />
+        <input type="hidden" name="cf-turnstile-response" value={captchaToken} />
 
         <AuthSubmitButton idleLabel="CREATE ACCOUNT" pendingLabel="CREATING..." className="w-full mt-4" />
       </form>

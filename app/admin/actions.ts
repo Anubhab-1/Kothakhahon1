@@ -25,9 +25,11 @@ import {
   releaseOrderInventory,
 } from "@/lib/order-inventory";
 import {
-  sendOrderShippedEmail,
-  sendOrderDeliveredEmail,
-} from "@/lib/email";
+  queueOrderShippedEmail,
+  queueOrderDeliveredEmail,
+  queueOrderRefundedEmail,
+  runEmailJobsAfterResponse,
+} from "@/lib/email-jobs";
 import { getSiteUrl } from "@/lib/env";
 
 function optionalString(formData: FormData, key: string) {
@@ -317,12 +319,23 @@ export async function saveBookAction(formData: FormData) {
   const authorId = optionalString(formData, "authorId");
   const genreNames = parseLines(optionalString(formData, "genres"));
   const price = parseFloatField(formData, "price");
+  const compareAtPrice = parseFloatField(formData, "compareAtPrice");
   const stockQuantity = normalizeStockQuantity(parseIntField(formData, "stockQuantity"));
   const lowStockThreshold = normalizeLowStockThreshold(parseIntField(formData, "lowStockThreshold"));
   const pageCount = parseIntField(formData, "pageCount");
   const reviewCount = parseIntField(formData, "reviewCount");
   const averageRating = parseFloatField(formData, "averageRating");
   const stockStatus = getDerivedStockStatus(stockQuantity, lowStockThreshold);
+  const publisher = optionalString(formData, "publisher") || null;
+  const tableOfContents = optionalString(formData, "tableOfContents") || null;
+
+  const galleryImages: string[] = [];
+  const g1 = optionalString(formData, "galleryImage1");
+  const g2 = optionalString(formData, "galleryImage2");
+  const g3 = optionalString(formData, "galleryImage3");
+  if (g1) galleryImages.push(g1);
+  if (g2) galleryImages.push(g2);
+  if (g3) galleryImages.push(g3);
 
   try {
     if (authorId) {
@@ -352,6 +365,7 @@ export async function saveBookAction(formData: FormData) {
             synopsis: optionalString(formData, "synopsis") || null,
             pullQuote: optionalString(formData, "pullQuote") || null,
             price,
+            compareAtPrice,
             stockQuantity,
             lowStockThreshold,
             stockStatus,
@@ -364,6 +378,9 @@ export async function saveBookAction(formData: FormData) {
             chapterPreview: optionalString(formData, "chapterPreview") || null,
             averageRating,
             reviewCount: reviewCount ?? 0,
+            publisher,
+            galleryImages,
+            tableOfContents,
           },
         })
       : await db.book.create({
@@ -376,6 +393,7 @@ export async function saveBookAction(formData: FormData) {
             synopsis: optionalString(formData, "synopsis") || null,
             pullQuote: optionalString(formData, "pullQuote") || null,
             price,
+            compareAtPrice,
             stockQuantity,
             lowStockThreshold,
             stockStatus,
@@ -388,6 +406,9 @@ export async function saveBookAction(formData: FormData) {
             chapterPreview: optionalString(formData, "chapterPreview") || null,
             averageRating,
             reviewCount: reviewCount ?? 0,
+            publisher,
+            galleryImages,
+            tableOfContents,
           },
         });
 
@@ -676,53 +697,19 @@ export async function updateOrderStatusAction(formData: FormData) {
     redirect(buildRedirect(`/admin/orders/${id}`, { error: message }));
   }
 
-  // --- Transactional emails on status transitions ---
-  // Fetch updated order data after transaction commits
-  const updatedOrder = await db.order.findUnique({
-    where: { id },
-    select: {
-      status: true,
-      customerEmail: true,
-      customerName: true,
-      trackingNumber: true,
-      carrier: true,
-    },
-  });
-
-  if (updatedOrder) {
-    const orderLabel = `#${id.slice(-8).toUpperCase()}`;
-    const siteUrl = getSiteUrl().toString().replace(/\/$/, "");
-
-    function getTrackingUrl(carrierName?: string | null, trackingNo?: string | null) {
-      if (!carrierName || !trackingNo) return null;
-      const c = carrierName.toLowerCase().trim();
-      if (c === "delhivery") return `https://www.delhivery.com/track/package/${trackingNo.trim()}`;
-      if (c === "dhl") return `https://www.dhl.com/in-en/home/tracking/tracking-express.html?submit=1&tracking-id=${trackingNo.trim()}`;
-      if (c === "fedex") return `https://www.fedex.com/apps/fedextrack/?tracknumbers=${trackingNo.trim()}`;
-      return null;
+  // --- Transactional emails on status transitions (Queued) ---
+  try {
+    if (status === "shipped") {
+      await queueOrderShippedEmail(id);
+    } else if (status === "delivered") {
+      const siteUrl = getSiteUrl().toString().replace(/\/$/, "");
+      await queueOrderDeliveredEmail(id, siteUrl);
+    } else if (status === "refunded" || paymentStatus === "refunded") {
+      await queueOrderRefundedEmail(id);
     }
-
-    try {
-      if (status === "shipped") {
-        await sendOrderShippedEmail({
-          to: updatedOrder.customerEmail,
-          customerName: updatedOrder.customerName,
-          orderLabel,
-          trackingNumber: updatedOrder.trackingNumber,
-          carrier: updatedOrder.carrier,
-          trackingUrl: getTrackingUrl(updatedOrder.carrier, updatedOrder.trackingNumber),
-        });
-      } else if (status === "delivered") {
-        await sendOrderDeliveredEmail({
-          to: updatedOrder.customerEmail,
-          customerName: updatedOrder.customerName,
-          orderLabel,
-          siteUrl,
-        });
-      }
-    } catch {
-      // Email failure should never block the admin redirect — silently swallow
-    }
+    runEmailJobsAfterResponse();
+  } catch (error) {
+    console.error("Failed to queue status transition email:", error);
   }
 
   revalidatePath("/admin/orders");
@@ -785,5 +772,244 @@ export async function triggerEmailQueueDrainAction() {
   } catch (error) {
     console.error("Queue drain error:", error);
     redirect(buildRedirect("/admin/email-jobs", { error: "Failed to process email queue." }));
+  }
+}
+
+export async function toggleUserStatusAction(formData: FormData) {
+  await requireAdminSession();
+
+  const id = requiredString(formData, "id", "User id");
+  try {
+    const user = await db.user.findUnique({
+      where: { id },
+      select: { isActive: true },
+    });
+
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    await db.user.update({
+      where: { id },
+      data: { isActive: !user.isActive },
+    });
+
+    revalidatePath("/admin/users");
+    redirect(buildRedirect("/admin/users", { notice: "User status updated." }));
+  } catch (error) {
+    rethrowIfRedirectError(error);
+    redirect(buildRedirect("/admin/users", { error: error instanceof Error ? error.message : "Failed to toggle user status." }));
+  }
+}
+
+export async function bulkUploadBooksAction(formData: FormData) {
+  await requireAdminSession();
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    redirect(buildRedirect("/admin/books", { error: "Please select a valid CSV file." }));
+  }
+
+  try {
+    const text = await file.text();
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result.map(val => val.replace(/^"|"$/g, "").trim());
+    };
+
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    if (lines.length < 2) {
+      throw new Error("CSV file must contain a header row and at least one data row.");
+    }
+
+    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+    const booksToUpload: Array<Record<string, string>> = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      if (values.length < headers.length) continue;
+
+      const record: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        record[header] = values[index] ?? "";
+      });
+
+      booksToUpload.push(record);
+    }
+
+    await db.$transaction(async (tx) => {
+      for (const record of booksToUpload) {
+        const title = record.title || "";
+        if (!title) continue;
+
+        const slug = slugify(record.slug || title);
+        const price = record.price ? parseFloat(record.price) : 0;
+        const stockQuantity = record.stockquantity ? parseInt(record.stockquantity, 10) : 12;
+        const lowStockThreshold = record.lowstockthreshold ? parseInt(record.lowstockthreshold, 10) : 3;
+        const pageCount = record.pagecount ? parseInt(record.pagecount, 10) : null;
+        const compareAtPrice = record.compareatprice ? parseFloat(record.compareatprice) : null;
+        
+        let authorId = null;
+        if (record.author) {
+          const authorSlug = slugify(record.author);
+          const author = await tx.author.upsert({
+            where: { slug: authorSlug },
+            update: {},
+            create: { name: record.author, slug: authorSlug },
+          });
+          authorId = author.id;
+        }
+
+        const genresList = record.genres 
+          ? record.genres.split(";").map(g => g.trim()).filter(Boolean)
+          : [];
+
+        const stockStatus = getDerivedStockStatus(stockQuantity, lowStockThreshold);
+
+        const book = await tx.book.upsert({
+          where: { slug },
+          update: {
+            title,
+            titleEn: record.titleen || null,
+            authorId,
+            price,
+            compareAtPrice,
+            pageCount,
+            stockQuantity,
+            lowStockThreshold,
+            stockStatus,
+            isbn: record.isbn || null,
+            language: record.language || "Bengali",
+            publisher: record.publisher || "Kothakhahon",
+            synopsis: record.synopsis || null,
+            pullQuote: record.pullquote || null,
+            chapterPreview: record.chapterpreview || null,
+            buyLink: record.buylink || null,
+          },
+          create: {
+            title,
+            titleEn: record.titleen || null,
+            slug,
+            authorId,
+            price,
+            compareAtPrice,
+            pageCount,
+            stockQuantity,
+            lowStockThreshold,
+            stockStatus,
+            isbn: record.isbn || null,
+            language: record.language || "Bengali",
+            publisher: record.publisher || "Kothakhahon",
+            synopsis: record.synopsis || null,
+            pullQuote: record.pullquote || null,
+            chapterPreview: record.chapterpreview || null,
+            buyLink: record.buylink || null,
+          },
+        });
+
+        if (genresList.length > 0) {
+          await tx.bookGenre.deleteMany({ where: { bookId: book.id } });
+          const genreIds = [];
+          for (const name of genresList) {
+            const genreSlug = slugify(name);
+            const genre = await tx.genre.upsert({
+              where: { slug: genreSlug },
+              update: {},
+              create: { name, slug: genreSlug },
+            });
+            genreIds.push(genre.id);
+          }
+          await tx.bookGenre.createMany({
+            data: genreIds.map((genreId, index) => ({
+              bookId: book.id,
+              genreId,
+              position: index,
+            })),
+          });
+        }
+      }
+    });
+
+    invalidateContentPresenceCache();
+    revalidateStorefront();
+    revalidatePath("/admin/books");
+    redirect(buildRedirect("/admin/books", { notice: `Bulk upload completed successfully. Processed ${booksToUpload.length} books.` }));
+  } catch (error) {
+    rethrowIfRedirectError(error);
+    redirect(buildRedirect("/admin/books", { error: error instanceof Error ? error.message : "Failed to process bulk upload." }));
+  }
+}
+
+export async function bulkUpdatePriceAction(formData: FormData) {
+  await requireAdminSession();
+
+  const adjustType = requiredString(formData, "adjustType", "Adjustment type");
+  const adjustDirection = requiredString(formData, "adjustDirection", "Adjustment direction");
+  const amountStr = requiredString(formData, "amount", "Amount");
+  const targetShelf = requiredString(formData, "targetShelf", "Target shelf");
+
+  try {
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      throw new Error("Please specify a valid positive amount.");
+    }
+
+    await db.$transaction(async (tx) => {
+      const books = await tx.book.findMany({
+        where: targetShelf !== "all" 
+          ? { genres: { some: { genreId: targetShelf } } } 
+          : {},
+        select: { id: true, price: true },
+      });
+
+      for (const book of books) {
+        const currentPrice = book.price || 0;
+        let newPrice = currentPrice;
+
+        if (adjustType === "percent") {
+          const factor = amount / 100;
+          if (adjustDirection === "increase") {
+            newPrice = currentPrice * (1 + factor);
+          } else {
+            newPrice = currentPrice * (1 - factor);
+          }
+        } else {
+          if (adjustDirection === "increase") {
+            newPrice = currentPrice + amount;
+          } else {
+            newPrice = currentPrice - amount;
+          }
+        }
+
+        newPrice = Math.max(0, Math.round(newPrice * 100) / 100);
+
+        await tx.book.update({
+          where: { id: book.id },
+          data: { price: newPrice },
+        });
+      }
+    });
+
+    invalidateContentPresenceCache();
+    revalidateStorefront();
+    revalidatePath("/admin/books");
+    redirect(buildRedirect("/admin/books", { notice: "Bulk price update completed successfully." }));
+  } catch (error) {
+    rethrowIfRedirectError(error);
+    redirect(buildRedirect("/admin/books", { error: error instanceof Error ? error.message : "Failed to perform price update." }));
   }
 }

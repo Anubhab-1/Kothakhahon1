@@ -12,6 +12,7 @@ export async function GET() {
         id: session.userId,
         email: session.email,
         fullName: session.fullName,
+        phone: session.phone,
         role: session.role,
       }
     : null;

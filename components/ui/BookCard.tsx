@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Heart } from "lucide-react";
 import type { Book } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 import TiltCard from "@/components/ui/TiltCard";
@@ -14,8 +13,10 @@ interface BookCardProps {
 function StarsMini({ rating, count }: { rating: number; count: number }) {
   const full = Math.floor(rating);
   const half = rating - full >= 0.5;
+  const label = `${rating.toFixed(1)} out of 5 — ${count} reviews`;
+
   return (
-    <div className="flex items-center gap-1">
+    <div role="img" aria-label={label} className="flex items-center gap-1">
       <span className="flex gap-0.5">
         {Array.from({ length: 5 }).map((_, i) => (
           <svg
@@ -25,6 +26,7 @@ function StarsMini({ rating, count }: { rating: number; count: number }) {
             fill={i < full ? "#d8a84b" : i === full && half ? "url(#half)" : "none"}
             stroke="#d8a84b"
             strokeWidth="1"
+            aria-hidden="true"
           >
             <defs>
               <linearGradient id="half">
@@ -65,7 +67,7 @@ export default function BookCard({ book }: BookCardProps) {
             {book.coverImageUrl ? (
               <Image
                 src={book.coverImageUrl}
-                alt={book.title}
+                alt={`Cover of ${book.title} by ${book.author?.name ?? "Unknown Author"}`}
                 fill
                 sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                 className="object-cover transition duration-500 group-hover:scale-[1.04]"
@@ -99,19 +101,9 @@ export default function BookCard({ book }: BookCardProps) {
             )}
           </div>
 
-          {/* Quick wishlist heart — visible on hover */}
-          <button
-            type="button"
-            aria-label={`Save ${book.title} to wishlist`}
-            className="absolute right-2.5 top-2.5 z-[3] rounded-full border border-smoke/80 bg-void/75 p-1.5 text-stone opacity-0 backdrop-blur-sm transition-all duration-200 hover:border-gold/60 hover:text-gold group-hover:opacity-100 sm:right-3 sm:top-3"
-            onClick={(e) => {
-              e.preventDefault();
-              // Wishlist from catalog requires auth — link to book page
-              window.location.href = `/books/${book.slug}#wishlist`;
-            }}
-          >
-            <Heart className="h-3.5 w-3.5" />
-          </button>
+          <div className="absolute right-2.5 top-2.5 z-[3] rounded-full border border-gold/40 bg-void/80 px-2 py-1 font-ui text-[9px] tracking-[0.14em] text-gold sm:right-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
+            BOOK
+          </div>
         </div>
 
         <div className="relative z-20 mt-3 space-y-1.5 sm:mt-4 sm:space-y-2">
@@ -140,7 +132,10 @@ export default function BookCard({ book }: BookCardProps) {
           <div className="ink-divider mt-2" />
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            <p className="rounded-full border border-smoke px-2 py-1 font-mono text-[11px] text-parchment sm:px-2.5 sm:text-xs">
+            <p
+              aria-label={`Price ${formatINR(book.price)}`}
+              className="rounded-full border border-smoke px-2 py-1 font-mono text-[11px] text-parchment sm:px-2.5 sm:text-xs"
+            >
               {formatINR(book.price)}
             </p>
             <AddToCart

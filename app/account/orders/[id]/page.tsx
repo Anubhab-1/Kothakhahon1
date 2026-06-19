@@ -79,24 +79,69 @@ export default async function AccountOrderDetailPage({
 
   const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
 
-  // Derive active timeline steps
-  const isPaidOrConfirmed = order.paymentStatus === "paid" || order.status !== "pending" || order.paidAt || order.processingAt;
-  const isPacked = order.packedAt || ["packed", "shipped", "delivered"].includes(order.status);
-  const isShipped = order.shippedAt || ["shipped", "delivered"].includes(order.status);
-  const isDelivered = order.deliveredAt || order.status === "delivered";
+  const isConfirmed =
+    order.paymentMethod === "cod"
+      ? order.status !== "pending" || Boolean(order.processingAt)
+      : order.paymentStatus === "paid";
+  const isProcessing = Boolean(order.processingAt || ["processing", "packed", "shipped", "delivered"].includes(order.status));
+  const isPacked = Boolean(order.packedAt || ["packed", "shipped", "delivered"].includes(order.status));
+  const isShipped = Boolean(order.shippedAt || ["shipped", "delivered"].includes(order.status));
+  const isDelivered = Boolean(order.deliveredAt || order.status === "delivered");
+  const isCancelled = order.status === "cancelled";
+  const isRefunded = order.status === "refunded";
 
   const timeline = [
-    { label: "Order Placed", date: order.createdAt, active: true, desc: "Order details received and enqueued." },
     {
-      label: order.paymentMethod === "cod" ? "Order Confirmed" : "Payment Received",
-      date: order.processingAt ?? order.paidAt ?? (isPaidOrConfirmed ? order.createdAt : null),
-      active: !!isPaidOrConfirmed,
-      desc: order.paymentMethod === "cod" ? "COD order verified by publishing desk." : "Transaction authorized and settled.",
+      label: "Order placed",
+      date: order.createdAt,
+      active: true,
+      desc: "Your order has been accepted and entered into our system.",
     },
-    { label: "Packed", date: order.packedAt, active: !!isPacked, desc: "Parcel prepared and sealed at our Kolkata desk." },
-    { label: "Shipped", date: order.shippedAt, active: !!isShipped, desc: "Handed over to carrier for transit." },
-    { label: "Delivered", date: order.deliveredAt, active: !!isDelivered, desc: "Successfully delivered to recipient." },
+    {
+      label: order.paymentMethod === "cod" ? "Order confirmed" : "Payment received",
+      date: order.processingAt ?? order.paidAt ?? (isConfirmed ? order.createdAt : null),
+      active: isConfirmed,
+      desc: order.paymentMethod === "cod"
+        ? "Cash-on-delivery orders are confirmed and queued for fulfilment."
+        : "Your payment has been authorized and verified.",
+    },
+    {
+      label: "Processing",
+      date: order.processingAt,
+      active: isProcessing,
+      desc: "We are preparing your books and packing them for shipment.",
+    },
+    { label: "Packed", date: order.packedAt, active: isPacked, desc: "Your parcel is packed and ready for pickup." },
+    { label: "Shipped", date: order.shippedAt, active: isShipped, desc: "The carrier has picked up your package." },
+    { label: "Delivered", date: order.deliveredAt, active: isDelivered, desc: "The package has been delivered to the address provided." },
   ];
+
+  if (isCancelled || isRefunded) {
+    timeline.push({
+      label: isCancelled ? "Order cancelled" : "Order refunded",
+      date: order.cancelledAt ?? order.refundedAt ?? order.updatedAt,
+      active: true,
+      desc: isCancelled
+        ? "This order was cancelled and will not be fulfilled."
+        : "The payment was refunded to your original method.",
+    });
+  }
+
+  const statusSummary = isCancelled
+    ? `This order was cancelled on ${formatDisplayDate(order.cancelledAt?.toISOString() ?? order.updatedAt.toISOString(), "recent date")}.`
+    : isRefunded
+    ? `This order was refunded on ${formatDisplayDate(order.refundedAt?.toISOString() ?? order.updatedAt.toISOString(), "recent date")}.`
+    : isDelivered
+    ? `Delivered on ${formatDisplayDate(order.deliveredAt!.toISOString(), "recent date")}.`
+    : isShipped
+    ? `Shipped on ${formatDisplayDate(order.shippedAt!.toISOString(), "recent date")}. Track your delivery with the carrier link below.`
+    : isPacked
+    ? "Packed and awaiting carrier pickup."
+    : isProcessing
+    ? "Preparing your order at our fulfilment desk."
+    : order.paymentStatus === "pending"
+    ? "Awaiting payment confirmation."
+    : "Your order is in progress and will update here soon.";
 
   return (
     <div className="grain-overlay mx-auto w-full max-w-5xl px-4 py-14 md:px-8">
@@ -167,6 +212,11 @@ export default async function AccountOrderDetailPage({
               </span>
             </div>
 
+            <div className="mt-4 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-sm text-parchment">
+              <p className="font-ui text-[10px] tracking-[0.14em] text-gold">CURRENT DELIVERY SUMMARY</p>
+              <p className="mt-2 font-body text-base text-ivory">{statusSummary}</p>
+            </div>
+
             {/* Carrier tracking details */}
             {order.trackingNumber && (
               <div className="mt-6 rounded-2xl border border-gold/25 bg-gold/5 p-4 space-y-2">
@@ -188,53 +238,101 @@ export default async function AccountOrderDetailPage({
                   </a>
                 ) : (
                   <p className="font-body text-xs text-stone">
-                    Please track directly on the carrier's portal using the tracking number above.
+                    Please track directly on the carrier&apos;s portal using the tracking number above.
                   </p>
                 )}
               </div>
             )}
 
             {/* Visual Timeline */}
-            <div className="mt-8 relative border-l border-smoke/60 pl-6 space-y-6">
-              {timeline.map((stepItem, index) => (
-                <div key={index} className="relative">
-                  {/* Step Dot */}
-                  <div
-                    className={cn(
-                      "absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full border transition duration-150",
-                      stepItem.active
-                        ? "border-gold bg-gold text-void"
-                        : "border-smoke bg-void"
-                    )}
-                  />
-                  <div>
-                    <h4
-                      className={cn(
-                        "font-title text-2xl transition",
-                        stepItem.active ? "text-ivory" : "text-stone"
-                      )}
-                    >
-                      {stepItem.label}
-                    </h4>
-                    {stepItem.active && stepItem.date ? (
-                      <p className="font-mono text-xs text-gold">
-                        {formatDisplayDate(
-                          typeof stepItem.date === "string"
-                            ? stepItem.date
-                            : stepItem.date.toISOString(),
-                          ""
+            <div className="mt-8 space-y-0">
+              {timeline.map((stepItem, index) => {
+                const isLast = index === timeline.length - 1;
+                const nextActive = !isLast && timeline[index + 1]?.active;
+                return (
+                  <div key={index} className="flex gap-4">
+                    {/* Connector column */}
+                    <div className="flex flex-col items-center">
+                      {/* Dot */}
+                      <div
+                        className={cn(
+                          "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300",
+                          stepItem.active
+                            ? "border-gold bg-gold/10 shadow-[0_0_12px_2px_rgba(212,175,55,0.25)]"
+                            : "border-smoke/50 bg-void"
                         )}
+                      >
+                        {stepItem.active ? (
+                          <span className="block h-2.5 w-2.5 rounded-full bg-gold" />
+                        ) : (
+                          <span className="block h-2 w-2 rounded-full bg-smoke/40" />
+                        )}
+                      </div>
+                      {/* Vertical line */}
+                      {!isLast && (
+                        <div
+                          className={cn(
+                            "w-px flex-1 my-1 min-h-[28px] transition-all duration-300",
+                            nextActive ? "bg-gold/50" : "bg-smoke/40"
+                          )}
+                        />
+                      )}
+                    </div>
+                    {/* Content */}
+                    <div className={cn("pb-6 pt-1", isLast && "pb-0")}>
+                      <p
+                        className={cn(
+                          "font-ui text-[10px] tracking-[0.16em] uppercase transition-colors",
+                          stepItem.active ? "text-gold" : "text-stone/50"
+                        )}
+                      >
+                        {stepItem.active && stepItem.date
+                          ? formatDisplayDate(
+                              typeof stepItem.date === "string"
+                                ? stepItem.date
+                                : stepItem.date.toISOString(),
+                              ""
+                            )
+                          : "Pending"}
                       </p>
-                    ) : null}
-                    <p className="mt-1 font-body text-sm text-stone">{stepItem.desc}</p>
+                      <h4
+                        className={cn(
+                          "mt-0.5 font-title text-xl leading-snug transition-colors",
+                          stepItem.active ? "text-ivory" : "text-stone/60"
+                        )}
+                      >
+                        {stepItem.label}
+                      </h4>
+                      <p className={cn("mt-0.5 font-body text-sm", stepItem.active ? "text-stone" : "text-stone/40")}>
+                        {stepItem.desc}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            <div className="mt-8 border-t border-smoke/70 pt-6 space-y-3 font-body text-base text-stone">
-              <p className="text-parchment font-semibold">Total paid {formatINR(Number(order.totalAmount))}</p>
-              <p>Invoice {order.invoiceNumber ?? "will be generated on first download"}</p>
+            <div className="mt-8 border-t border-smoke/70 pt-6 space-y-2.5 font-body text-sm text-stone">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span className="font-mono text-parchment">{formatINR(order.subtotalAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shipping ({order.shippingMethod} estimate)</span>
+                <span className="font-mono text-parchment">{formatINR(order.shippingAmount)}</span>
+              </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <span>Discount{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                  <span className="font-mono">-{formatINR(order.discountAmount)}</span>
+                </div>
+              )}
+              <div className="border-t border-smoke/30 my-2" />
+              <div className="flex justify-between text-base font-semibold text-parchment">
+                <span>{order.paymentMethod === "cod" ? "Amount Due" : "Total Paid"}</span>
+                <span className="font-mono text-ivory text-lg">{formatINR(order.totalAmount)}</span>
+              </div>
+              <p className="pt-2 text-xs text-stone/70">Invoice: {order.invoiceNumber ?? "will be generated on first download"}</p>
             </div>
           </div>
 

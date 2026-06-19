@@ -4,19 +4,28 @@ import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import AuthSubmitButton from "./AuthSubmitButton";
-import { loginAction } from "@/app/auth/actions";
+import { loginAction, resendVerificationAction } from "@/app/auth/actions";
 import { Eye, EyeOff, ShieldAlert, Mail, LockKeyhole, ShieldCheck } from "lucide-react";
 import styles from "@/app/login/login.module.css";
+import Turnstile from "@/components/ui/Turnstile";
 
 interface LoginFormClientProps {
   nextPath: string;
   initialError?: string;
+  unverified?: boolean;
+  email?: string;
 }
 
-export default function LoginFormClient({ nextPath, initialError }: LoginFormClientProps) {
-  const [email, setEmail] = useState("");
+export default function LoginFormClient({
+  nextPath,
+  initialError,
+  unverified,
+  email: initialEmail,
+}: LoginFormClientProps) {
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
   const [clientError, setClientError] = useState("");
   const [shake, setShake] = useState(!!initialError);
 
@@ -27,6 +36,13 @@ export default function LoginFormClient({ nextPath, initialError }: LoginFormCli
     if (!email || !password) {
       e.preventDefault();
       setClientError("Email and password are required.");
+      setShake(true);
+      return;
+    }
+
+    if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken) {
+      e.preventDefault();
+      setClientError("Please complete the CAPTCHA.");
       setShake(true);
       return;
     }
@@ -45,6 +61,24 @@ export default function LoginFormClient({ nextPath, initialError }: LoginFormCli
           <ShieldAlert className="h-4 w-4 shrink-0" />
           <span>{clientError || initialError}</span>
         </div>
+      )}
+
+      {unverified && email && (
+        <form
+          action={resendVerificationAction}
+          className="rounded-[1.35rem] border border-gold/30 bg-gold/5 p-5 text-sm space-y-3 backdrop-blur-md transition-all duration-300"
+        >
+          <p className="font-body text-parchment/80 leading-relaxed">
+            Need us to resend the verification link? Click below to send a new activation link to <strong>{email}</strong>.
+          </p>
+          <input type="hidden" name="email" value={email} />
+          <input type="hidden" name="next" value={nextPath} />
+          <AuthSubmitButton
+            idleLabel="RESEND VERIFICATION LINK"
+            pendingLabel="SENDING..."
+            className="w-full !py-2.5 !text-xs !bg-gold/20 hover:!bg-gold/35 !text-gold border border-gold/40 shadow-sm"
+          />
+        </form>
       )}
 
       <form 
@@ -115,6 +149,9 @@ export default function LoginFormClient({ nextPath, initialError }: LoginFormCli
           <ShieldCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
           <p className="font-body leading-relaxed">Your account opens the right area automatically based on role.</p>
         </div>
+
+        <Turnstile onChange={setCaptchaToken} />
+        <input type="hidden" name="cf-turnstile-response" value={captchaToken} />
 
         <AuthSubmitButton
           idleLabel="SIGN IN"

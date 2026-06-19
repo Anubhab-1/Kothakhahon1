@@ -33,6 +33,11 @@ export default async function AdminOverviewPage({ searchParams }: AdminOverviewP
     recentOrders,
     recentMessages,
     failedEmailJobs,
+    revenueResult,
+    searchQueriesResult,
+    bookViewsResult,
+    lowStockBooks,
+    topSellers,
   ] = await Promise.all([
     searchParams,
     db.author.count(),
@@ -53,7 +58,38 @@ export default async function AdminOverviewPage({ searchParams }: AdminOverviewP
     db.emailJob.count({
       where: { status: "failed" },
     }),
+    db.order.aggregate({
+      where: { paymentStatus: "paid" },
+      _sum: { totalAmount: true },
+    }),
+    db.searchQuery.aggregate({
+      _sum: { count: true },
+    }),
+    db.book.aggregate({
+      _sum: { viewCount: true },
+    }),
+    db.book.findMany({
+      where: { stockQuantity: { lt: 10 } },
+      select: { id: true, title: true, stockQuantity: true },
+      orderBy: { stockQuantity: "asc" },
+      take: 5,
+    }),
+    db.book.findMany({
+      where: { soldCount: { gt: 0 } },
+      select: {
+        id: true,
+        title: true,
+        soldCount: true,
+        author: { select: { name: true } },
+      },
+      orderBy: { soldCount: "desc" },
+      take: 5,
+    }),
   ]);
+
+  const totalRevenue = revenueResult._sum.totalAmount ?? 0;
+  const totalEngagement = (searchQueriesResult._sum.count ?? 0) + (bookViewsResult._sum.viewCount ?? 0);
+  const conversionRate = totalEngagement > 0 ? (orders / totalEngagement) * 100 : 0;
 
   const hasEditorialContent = authors + books + posts > 0;
 
@@ -164,6 +200,16 @@ export default async function AdminOverviewPage({ searchParams }: AdminOverviewP
         <AdminStatCard label="Authors" value={String(authors)} hint="Profiles connected to books and essays." />
         <AdminStatCard label="Journal Posts" value={String(posts)} hint="Published essays and editorial updates." />
         <AdminStatCard label="Orders" value={String(orders)} hint="Checkout orders stored for fulfillment." />
+        <AdminStatCard
+          label="Total Revenue"
+          value={`₹${totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          hint="Calculated total from paid orders."
+        />
+        <AdminStatCard
+          label="Conversion Rate"
+          value={`${conversionRate.toFixed(2)}%`}
+          hint="Completed orders vs search/views traffic."
+        />
       </section>
 
       {/* Recent activity */}
@@ -471,6 +517,153 @@ export default async function AdminOverviewPage({ searchParams }: AdminOverviewP
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Commerce Insights & Inventory Health */}
+      <section
+        style={{
+          display: "grid",
+          gap: "1.5rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+        }}
+      >
+        {/* Top Sellers Leaderboard */}
+        <article className="admin-card">
+          <p
+            style={{
+              fontSize: "0.6rem",
+              fontWeight: 700,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              background: "linear-gradient(90deg, #10b981, #059669)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              marginBottom: "0.5rem",
+            }}
+          >
+            Leaderboard
+          </p>
+          <h2
+            style={{
+              fontSize: "1rem",
+              fontWeight: 700,
+              color: "#f0f2ff",
+              marginBottom: "1rem",
+              letterSpacing: "-0.015em",
+            }}
+          >
+            Top Selling Titles
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+            {topSellers.length > 0 ? (
+              topSellers.map((book, idx) => (
+                <div
+                  key={book.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.7rem 1rem",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    background: "rgba(255,255,255,0.025)",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "0.85rem", color: "#f0f2ff", fontWeight: 600 }}>
+                      {idx + 1}. {book.title}
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                      by {book.author?.name ?? "Unknown Author"}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "1.1rem",
+                      fontWeight: 800,
+                      color: "#10b981",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {book.soldCount} sold
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p style={{ fontSize: "0.825rem", color: "#475569", padding: "1rem 0" }}>
+                No sales recorded yet.
+              </p>
+            )}
+          </div>
+        </article>
+
+        {/* Low Stock Alerts */}
+        <article className="admin-card">
+          <p
+            style={{
+              fontSize: "0.6rem",
+              fontWeight: 700,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              background: "linear-gradient(90deg, #ef4444, #dc2626)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              marginBottom: "0.5rem",
+            }}
+          >
+            Inventory Alerts
+          </p>
+          <h2
+            style={{
+              fontSize: "1rem",
+              fontWeight: 700,
+              color: "#f0f2ff",
+              marginBottom: "1rem",
+              letterSpacing: "-0.015em",
+            }}
+          >
+            Low Stock Warnings
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+            {lowStockBooks.length > 0 ? (
+              lowStockBooks.map((book) => (
+                <div
+                  key={book.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.7rem 1rem",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(239, 68, 68, 0.15)",
+                    background: "rgba(239, 68, 68, 0.03)",
+                  }}
+                >
+                  <span style={{ fontSize: "0.85rem", color: "#fca5a5", fontWeight: 500 }}>
+                    {book.title}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.9rem",
+                      fontWeight: 800,
+                      color: "#ef4444",
+                      fontVariantNumeric: "tabular-nums",
+                      background: "rgba(239,68,68,0.1)",
+                      padding: "0.2rem 0.6rem",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    {book.stockQuantity} left
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p style={{ fontSize: "0.825rem", color: "#475569", padding: "1rem 0" }}>
+                All book quantities are healthy (10+ copies).
+              </p>
+            )}
+          </div>
+        </article>
       </section>
     </div>
   );

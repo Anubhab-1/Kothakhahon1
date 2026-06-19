@@ -8,6 +8,12 @@ import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { getSiteUrlString } from "@/lib/env";
+import {
+  queueVerificationEmail,
+  runEmailJobsAfterResponse,
+} from "@/lib/email-jobs";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { verifyCaptcha } from "@/lib/captcha";
 
 async function claimOrdersForUser(userId: string, email: string) {
   await db.order.updateMany({
@@ -50,12 +56,30 @@ function getSafeNextPath(value: string) {
 }
 
 export async function loginAction(formData: FormData) {
+  const ip = await getClientIp();
+  const rl = await checkRateLimit({ key: `login:${ip}`, limit: 5, windowMs: 60_000 });
+  const next = getSafeNextPath(optionalString(formData, "next"));
+
+  if (!rl.ok) {
+    redirect(
+      buildRedirect("/login", {
+        error: `Too many login attempts. Please try again in ${Math.ceil(rl.retryAfterMs / 1000)} seconds.`,
+        next,
+      })
+    );
+  }
+
   const email = optionalString(formData, "email").toLowerCase();
   const password = optionalString(formData, "password");
-  const next = getSafeNextPath(optionalString(formData, "next"));
+  const captchaToken = optionalString(formData, "cf-turnstile-response");
 
   if (!email || !password) {
     redirect(buildRedirect("/login", { error: "Email and password are required.", next }));
+  }
+
+  const isCaptchaValid = await verifyCaptcha(captchaToken);
+  if (!isCaptchaValid) {
+    redirect(buildRedirect("/login", { error: "CAPTCHA verification failed. Please try again.", next }));
   }
 
   const user = await db.user.findUnique({
@@ -64,6 +88,17 @@ export async function loginAction(formData: FormData) {
 
   if (!user || !user.isActive || !verifyPassword(password, user.passwordHash)) {
     redirect(buildRedirect("/login", { error: "Invalid email or password.", next }));
+  }
+
+  if (!user.emailVerifiedAt) {
+    redirect(
+      buildRedirect("/login", {
+        error: "Please verify your email address before logging in.",
+        unverified: "true",
+        email,
+        next,
+      })
+    );
   }
 
   await createSession(user);
@@ -86,13 +121,30 @@ export async function loginAction(formData: FormData) {
 }
 
 export async function registerAction(formData: FormData) {
+  const ip = await getClientIp();
+  const rl = await checkRateLimit({ key: `register:${ip}`, limit: 3, windowMs: 60_000 });
+
+  if (!rl.ok) {
+    redirect(
+      buildRedirect("/register", {
+        error: `Too many registration attempts. Please try again in ${Math.ceil(rl.retryAfterMs / 1000)} seconds.`,
+      })
+    );
+  }
+
   const fullName = optionalString(formData, "fullName");
   const email = optionalString(formData, "email").toLowerCase();
   const password = optionalString(formData, "password");
   const confirmPassword = optionalString(formData, "confirmPassword");
+  const captchaToken = optionalString(formData, "cf-turnstile-response");
 
   if (!fullName || !email || !password || !confirmPassword) {
     redirect(buildRedirect("/register", { error: "All fields are required." }));
+  }
+
+  const isCaptchaValid = await verifyCaptcha(captchaToken);
+  if (!isCaptchaValid) {
+    redirect(buildRedirect("/register", { error: "CAPTCHA verification failed. Please try again." }));
   }
 
   if (password.length < 8) {
@@ -112,7 +164,7 @@ export async function registerAction(formData: FormData) {
     redirect(buildRedirect("/register", { error: "An account with this email already exists." }));
   }
 
-  const user = await db.user.create({
+  await db.user.create({
     data: {
       email,
       fullName,
@@ -122,9 +174,80 @@ export async function registerAction(formData: FormData) {
     },
   });
 
-  await createSession(user);
-  await claimOrdersForUser(user.id, user.email);
-  redirect("/account?notice=Welcome%20to%20Kothakhahon.");
+  // Create verification token
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await db.emailVerificationToken.create({
+    data: { email, token, expiresAt },
+  });
+
+  const verificationUrl = `${getSiteUrlString()}/verify-email?token=${token}`;
+  try {
+    await queueVerificationEmail(email, verificationUrl);
+    runEmailJobsAfterResponse();
+  } catch (error) {
+    console.error("Failed to queue verification email:", error);
+  }
+
+  redirect(`/register/verify-pending?email=${encodeURIComponent(email)}`);
+}
+
+export async function resendVerificationAction(formData: FormData) {
+  const ip = await getClientIp();
+  const rl = await checkRateLimit({ key: `resend:${ip}`, limit: 3, windowMs: 60_000 });
+  const email = optionalString(formData, "email").toLowerCase();
+  const next = getSafeNextPath(optionalString(formData, "next"));
+
+  if (!rl.ok) {
+    redirect(
+      buildRedirect("/login", {
+        error: `Too many verification link requests. Please try again in ${Math.ceil(rl.retryAfterMs / 1000)} seconds.`,
+        email,
+        unverified: "true",
+        next,
+      })
+    );
+  }
+
+  if (!email) {
+    redirect("/login?error=Email%20address%20is%20required.");
+  }
+
+  const user = await db.user.findUnique({
+    where: { email },
+    select: { id: true, emailVerifiedAt: true, isActive: true },
+  });
+
+  if (!user || !user.isActive) {
+    redirect("/login?error=Account%20not%20found.");
+  }
+
+  if (user.emailVerifiedAt) {
+    redirect(buildRedirect("/login", { notice: "Your email is already verified. Please sign in.", next }));
+  }
+
+  // Invalidate previous verification tokens
+  await db.emailVerificationToken.deleteMany({
+    where: { email },
+  });
+
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await db.emailVerificationToken.create({
+    data: { email, token, expiresAt },
+  });
+
+  const verificationUrl = `${getSiteUrlString()}/verify-email?token=${token}`;
+  try {
+    await queueVerificationEmail(email, verificationUrl);
+    runEmailJobsAfterResponse();
+  } catch (error) {
+    console.error("Failed to resend verification email:", error);
+  }
+
+  redirect(`/register/verify-pending?email=${encodeURIComponent(email)}&notice=Verification%20email%20resent.`);
 }
 
 export async function logoutAction() {
@@ -135,6 +258,7 @@ export async function logoutAction() {
 export async function updateAccountProfileAction(formData: FormData) {
   const session = await requireSession("/account");
   const fullName = optionalString(formData, "fullName");
+  const phone = optionalString(formData, "phone");
   const newPassword = optionalString(formData, "newPassword");
   const confirmPassword = optionalString(formData, "confirmPassword");
 
@@ -156,6 +280,7 @@ export async function updateAccountProfileAction(formData: FormData) {
     where: { id: session.userId },
     data: {
       fullName,
+      phone: phone || null,
       ...(newPassword ? { passwordHash: hashPassword(newPassword) } : {}),
     },
   });
@@ -167,6 +292,15 @@ export async function updateAccountProfileAction(formData: FormData) {
 }
 
 export async function forgotPasswordAction(formData: FormData) {
+  const ip = await getClientIp();
+  const rl = await checkRateLimit({ key: `forgot-pwd:${ip}`, limit: 3, windowMs: 60_000 });
+
+  if (!rl.ok) {
+    redirect(
+      `/forgot-password?error=Too%20many%20password%20reset%20requests.%20Please%20try%20again%20in%20${Math.ceil(rl.retryAfterMs / 1000)}%20seconds.`
+    );
+  }
+
   const email = optionalString(formData, "email").toLowerCase();
 
   if (!email) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 export interface AccordionItem {
   id: string;
   title: string;
-  content: string;
+  content: ReactNode;
 }
 
 interface AccordionProps {
@@ -53,7 +53,7 @@ export default function Accordion({ items, defaultOpenId }: AccordionProps) {
                   transition={{ duration: 0.25, ease: "easeInOut" }}
                   className="overflow-hidden"
                 >
-                  <p className="px-5 pb-5 font-body text-lg text-parchment/95">{item.content}</p>
+                  <div className="px-5 pb-5 font-body text-lg text-parchment/95">{item.content}</div>
                 </motion.div>
               ) : null}
             </AnimatePresence>

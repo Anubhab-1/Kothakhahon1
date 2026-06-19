@@ -29,6 +29,10 @@ export interface BookEditorData {
   averageRating: string;
   reviewCount: string;
   genres: string[];
+  publisher?: string;
+  compareAtPrice?: string;
+  galleryImages: string[];
+  tableOfContents?: string;
 }
 
 export default function BookEditor({
@@ -72,10 +76,14 @@ export default function BookEditor({
           </label>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-3">
           <label className="block space-y-2">
             <span className="admin-field-label">Price (INR)</span>
             <input name="price" type="number" step="0.01" className="admin-input" defaultValue={book?.price ?? ""} />
+          </label>
+          <label className="block space-y-2">
+            <span className="admin-field-label">Compare At Price (INR)</span>
+            <input name="compareAtPrice" type="number" step="0.01" className="admin-input" defaultValue={book?.compareAtPrice ?? ""} placeholder="Strike-through MSRP" />
           </label>
           <label className="block space-y-2">
             <span className="admin-field-label">Publication Date</span>
@@ -121,7 +129,7 @@ export default function BookEditor({
           </label>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-3">
           <label className="block space-y-2">
             <span className="admin-field-label">ISBN</span>
             <input name="isbn" className="admin-input" defaultValue={book?.isbn ?? ""} />
@@ -129,6 +137,10 @@ export default function BookEditor({
           <label className="block space-y-2">
             <span className="admin-field-label">Language</span>
             <input name="language" className="admin-input" defaultValue={book?.language ?? ""} placeholder="Bengali" />
+          </label>
+          <label className="block space-y-2">
+            <span className="admin-field-label">Publisher</span>
+            <input name="publisher" className="admin-input" defaultValue={book?.publisher ?? ""} placeholder="Kothakhahon" />
           </label>
         </div>
 
@@ -139,6 +151,33 @@ export default function BookEditor({
           initialValue={book?.coverImageUrl ?? ""}
           hint="Use a clean portrait cover. Direct uploads land in Cloudinary when credentials are configured."
         />
+
+        <div className="border-t border-ink/10 pt-6 space-y-4">
+          <span className="admin-field-label block font-semibold uppercase tracking-wider text-xs text-ink/70">Gallery Images (Visual Previews)</span>
+          <div className="grid gap-5 md:grid-cols-3">
+            <AdminImageField
+              label="Gallery Image 1"
+              name="galleryImage1"
+              folder="books/gallery"
+              initialValue={book?.galleryImages?.[0] ?? ""}
+              stacked
+            />
+            <AdminImageField
+              label="Gallery Image 2"
+              name="galleryImage2"
+              folder="books/gallery"
+              initialValue={book?.galleryImages?.[1] ?? ""}
+              stacked
+            />
+            <AdminImageField
+              label="Gallery Image 3"
+              name="galleryImage3"
+              folder="books/gallery"
+              initialValue={book?.galleryImages?.[2] ?? ""}
+              stacked
+            />
+          </div>
+        </div>
 
         <label className="block space-y-2">
           <span className="admin-field-label">Buy Link</span>
@@ -159,6 +198,11 @@ export default function BookEditor({
         <label className="block space-y-2">
           <span className="admin-field-label">Synopsis</span>
           <textarea name="synopsis" rows={6} className="admin-textarea" defaultValue={book?.synopsis ?? ""} />
+        </label>
+
+        <label className="block space-y-2">
+          <span className="admin-field-label">Table of Contents</span>
+          <textarea name="tableOfContents" rows={4} className="admin-textarea" defaultValue={book?.tableOfContents ?? ""} placeholder="1. Chapter One..." />
         </label>
 
         <label className="block space-y-2">

@@ -516,6 +516,12 @@ function mapBookRecord(book: BookRecord): Book {
     stockQuantity,
     lowStockThreshold,
     stockStatus: getDerivedStockStatus(stockQuantity, lowStockThreshold),
+    publisher: book.publisher ?? undefined,
+    compareAtPrice: book.compareAtPrice ?? undefined,
+    galleryImages: book.galleryImages,
+    tableOfContents: book.tableOfContents ?? undefined,
+    soldCount: book.soldCount,
+    viewCount: book.viewCount,
   };
 }
 

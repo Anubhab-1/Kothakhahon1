@@ -8,6 +8,7 @@ import {
   type OrderStatus,
 } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { releaseCouponForOrder } from "@/lib/coupons";
 import { commitOrderInventory } from "@/lib/order-inventory";
 
 type LockedOrderRow = {
@@ -205,6 +206,8 @@ export async function markRazorpayOrderFailed(options: {
     if (lockedOrder.paymentStatus === "failed") {
       return { outcome: "already_failed" as const, orderId: lockedOrder.id };
     }
+
+    await releaseCouponForOrder(tx, lockedOrder.id);
 
     await tx.order.update({
       where: { id: lockedOrder.id },

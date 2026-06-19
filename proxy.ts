@@ -1,11 +1,10 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const SESSION_COOKIE = "kothakhahon_session";
 
 export function proxy(request: NextRequest) {
-  const nonce = Buffer.from(randomUUID()).toString("base64");
+  const nonce = btoa(crypto.randomUUID());
   const isProd = process.env.NODE_ENV === "production";
   const { pathname } = request.nextUrl;
 

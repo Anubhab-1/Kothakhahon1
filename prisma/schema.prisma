@@ -48,6 +48,13 @@ enum EmailJobType {
   cod_order_admin
   paid_order_customer
   paid_order_admin
+  verification_email
+  welcome_email
+  order_shipped
+  order_delivered
+  order_refunded
+  low_stock_admin
+  failed_payment_admin
 }
 
 enum EmailJobStatus {
@@ -63,21 +70,71 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  fullName     String?
-  role         UserRole @default(CUSTOMER)
-  isActive     Boolean  @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  orders       Order[]
-  wishlist     WishlistItem[]
-  reviews      Review[]
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String
+  fullName        String?
+  phone           String?
+  role            UserRole @default(CUSTOMER)
+  isActive        Boolean  @default(true)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  orders          Order[]
+  wishlist        WishlistItem[]
+  reviews         Review[]
+  addresses       Address[]
+  cartItems       CartItem[]
 
   @@index([role])
   @@map("AdminUser")
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  label        String   @default("Home")
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  country      String   @default("India")
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isDefault])
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
 }
 
 model SiteSettings {
@@ -147,6 +204,7 @@ model Book {
   synopsis        String?
   pullQuote       String?
   price           Float?
+  compareAtPrice  Float?
   stockQuantity   Int         @default(12)
   lowStockThreshold Int       @default(3)
   stockStatus     StockStatus @default(in_stock)
@@ -159,12 +217,19 @@ model Book {
   chapterPreview  String?
   averageRating   Float?
   reviewCount     Int         @default(0)
+  publisher       String?
+  galleryImages   String[]
+  tableOfContents String?
+  soldCount       Int         @default(0)
+  viewCount       Int         @default(0)
   author          Author?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
   genres          BookGenre[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
   @@index([stockStatus, stockQuantity])
+  @@index([soldCount])
+  @@index([viewCount])
 }
 
 model BookGenre {
@@ -234,6 +299,7 @@ model NewsletterSubscriber {
 model Order {
   id                 String        @id @default(cuid())
   userId             String?
+  couponId           String?
   status             OrderStatus   @default(pending)
   paymentMethod      PaymentMethod @default(razorpay)
   paymentStatus      PaymentStatus @default(pending)
@@ -248,6 +314,9 @@ model Order {
   country            String
   subtotalAmount     Float
   shippingAmount     Float         @default(0)
+  shippingMethod     String        @default("standard")
+  discountAmount     Float         @default(0)
+  couponCode         String?
   totalAmount        Float
   invoiceNumber      String?       @unique
   invoiceIssuedAt    DateTime?
@@ -268,9 +337,11 @@ model Order {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   user               User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  coupon             Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items              OrderItem[]
 
   @@index([userId])
+  @@index([couponId])
   @@index([customerEmail])
   @@index([status, paymentStatus])
 }
@@ -371,6 +442,7 @@ model Coupon {
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   uses         CouponUse[]
+  orders        Order[]
 
   @@index([code, isActive])
 }
@@ -391,4 +463,14 @@ model CouponUse {
 enum CouponType {
   percent
   flat
+}
+
+model SearchQuery {
+  id        String   @id @default(cuid())
+  query     String   @unique
+  count     Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([count])
 }

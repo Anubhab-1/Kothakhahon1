@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import InfoPageShell from "@/components/site/InfoPageShell";
 
-export const metadata = {
-  title: "Privacy Policy",
+export const metadata: Metadata = {
+  title: "Privacy Policy | Kothakhahon",
+  description: "Review how we collect, store, and safeguard your personal data, and details regarding third-party payment providers like Razorpay.",
+  alternates: {
+    canonical: "/privacy-policy",
+  },
 };
 
 export default function PrivacyPolicyPage() {

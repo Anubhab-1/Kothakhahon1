@@ -100,8 +100,8 @@ export default function RootLayout({
         className={`${cormorant.variable} ${cinzel.variable} ${ebGaramond.variable} ${dmMono.variable} ${notoSerifBengali.variable} bg-void font-body text-parchment antialiased`}
         suppressHydrationWarning
       >
-        <CartProvider>
-          <PublicSessionProvider>
+        <PublicSessionProvider>
+          <CartProvider>
             <div className="relative min-h-screen overflow-x-clip">
               <LenisProvider>
                 <ConditionalPublicChrome>
@@ -117,8 +117,8 @@ export default function RootLayout({
                 </ConditionalPublicChrome>
               </LenisProvider>
             </div>
-          </PublicSessionProvider>
-        </CartProvider>
+          </CartProvider>
+        </PublicSessionProvider>
       </body>
     </html>
   );

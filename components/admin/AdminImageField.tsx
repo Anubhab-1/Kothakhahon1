@@ -16,6 +16,7 @@ interface AdminImageFieldProps {
   initialValue?: string;
   placeholder?: string;
   hint?: string;
+  stacked?: boolean;
 }
 
 interface UploadResponse {
@@ -29,6 +30,7 @@ export default function AdminImageField({
   initialValue = "",
   placeholder = "https://...",
   hint = "Paste a stable image URL or upload directly to Cloudinary.",
+  stacked = false,
 }: AdminImageFieldProps) {
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,8 +89,8 @@ export default function AdminImageField({
     <div className="space-y-3">
       <span className="admin-field-label">{label}</span>
 
-      <div className="grid gap-4 lg:grid-cols-[180px_1fr]">
-        <div className="relative overflow-hidden rounded-[26px] border border-ink/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(238,228,213,0.92))]">
+      <div className={stacked ? "space-y-3" : "grid gap-4 lg:grid-cols-[180px_1fr]"}>
+        <div className={`relative overflow-hidden rounded-[26px] border border-ink/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(238,228,213,0.92))] ${stacked ? "w-full max-w-[180px]" : ""}`}>
           <div className="aspect-[4/5]">
             {value ? (
               <>
@@ -114,7 +116,7 @@ export default function AdminImageField({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 flex-1 min-w-0">
           <label htmlFor={inputId} className="sr-only">
             {label}
           </label>

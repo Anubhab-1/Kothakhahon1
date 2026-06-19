@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import Turnstile from "@/components/ui/Turnstile";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -18,6 +19,7 @@ const contactSchema = z.object({
 type ContactValues = z.infer<typeof contactSchema>;
 
 export default function ContactForm() {
+  const [captchaToken, setCaptchaToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -35,6 +37,11 @@ export default function ContactForm() {
   const messageLength = watch("message")?.length ?? 0;
 
   const onSubmit = handleSubmit(async (values) => {
+    if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken) {
+      setSubmitError("Please complete the CAPTCHA.");
+      return;
+    }
+
     setSubmitError(null);
     setSubmitting(true);
 
@@ -44,7 +51,7 @@ export default function ContactForm() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, captchaToken }),
       });
 
       if (!response.ok) {
@@ -138,6 +145,8 @@ export default function ContactForm() {
       </div>
 
       {submitError ? <p className="mt-4 text-sm text-ember">{submitError}</p> : null}
+
+      <Turnstile onChange={setCaptchaToken} />
 
       <button
         type="submit"

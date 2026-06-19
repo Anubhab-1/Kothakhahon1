@@ -22,6 +22,7 @@ const checkoutSchema = z.object({
   state: z.string().min(2, "Enter state."),
   postalCode: z.string().min(4, "Enter postal code."),
   country: z.string().min(2, "Enter country."),
+  shippingMethod: z.enum(["standard", "express"]),
   paymentMethod: z.enum(["razorpay", "cod"], {
     error: "Choose a payment method.",
   }),
@@ -83,7 +84,37 @@ interface CreateOrderCodResponse {
 
 type CreateOrderResponse = CreateOrderRazorpayResponse | CreateOrderCodResponse;
 
-export default function CheckoutClient() {
+interface DefaultAddress {
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+interface SavedAddress extends DefaultAddress {
+  id: string;
+  label: string;
+}
+
+interface CheckoutClientProps {
+  defaultAddress?: DefaultAddress;
+  defaultAddressId?: string;
+  savedAddresses?: SavedAddress[];
+  userEmail?: string;
+  userName?: string;
+}
+
+export default function CheckoutClient({
+  defaultAddress,
+  defaultAddressId,
+  savedAddresses,
+  userEmail,
+  userName,
+}: CheckoutClientProps) {
   const router = useRouter();
   const { items, subtotal, clearCart } = useCart();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -102,6 +133,11 @@ export default function CheckoutClient() {
     type: string;
     value: number;
   } | null>(null);
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    defaultAddressId ?? savedAddresses?.[0]?.id ?? null,
+  );
+  const isSignedIn = Boolean(userEmail);
   const onlinePaymentEnabled = Boolean(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim());
 
   const {
@@ -114,14 +150,40 @@ export default function CheckoutClient() {
   } = useForm<CheckoutValues>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      country: "India",
+      country: defaultAddress?.country ?? "India",
+      shippingMethod: "standard",
       paymentMethod: "cod",
+      fullName: userName ?? "",
+      email: userEmail ?? "",
+      phone: defaultAddress?.phone ?? "",
+      addressLine1: defaultAddress?.addressLine1 ?? "",
+      addressLine2: defaultAddress?.addressLine2 ?? "",
+      city: defaultAddress?.city ?? "",
+      state: defaultAddress?.state ?? "",
+      postalCode: defaultAddress?.postalCode ?? "",
     },
   });
 
   const selectedPaymentMethod = watch("paymentMethod");
+  const selectedShippingMethod = watch("shippingMethod");
   const selectedCountry = watch("country");
   const selectedPostalCode = watch("postalCode");
+
+  const selectedSavedAddress = savedAddresses?.find((address) => address.id === selectedAddressId);
+
+  useEffect(() => {
+    if (selectedSavedAddress) {
+      setValue("fullName", selectedSavedAddress.fullName, { shouldDirty: true });
+      setValue("email", userEmail ?? "", { shouldDirty: true });
+      setValue("phone", selectedSavedAddress.phone, { shouldDirty: true });
+      setValue("addressLine1", selectedSavedAddress.addressLine1, { shouldDirty: true });
+      setValue("addressLine2", selectedSavedAddress.addressLine2 ?? "", { shouldDirty: true });
+      setValue("city", selectedSavedAddress.city, { shouldDirty: true });
+      setValue("state", selectedSavedAddress.state, { shouldDirty: true });
+      setValue("postalCode", selectedSavedAddress.postalCode, { shouldDirty: true });
+      setValue("country", selectedSavedAddress.country, { shouldDirty: true });
+    }
+  }, [selectedSavedAddress, setValue, userEmail]);
 
   // India Pincode API lookup
   useEffect(() => {
@@ -182,9 +244,24 @@ export default function CheckoutClient() {
       getShippingQuote({
         country: selectedCountry,
         subtotalAmount: subtotal,
+        shippingMethod: selectedShippingMethod,
       }),
-    [selectedCountry, subtotal],
+    [selectedCountry, subtotal, selectedShippingMethod],
   );
+
+  const handleUseSavedAddress = (address: SavedAddress) => {
+    if (!address) return;
+    setSelectedAddressId(address.id);
+    setValue("fullName", address.fullName, { shouldDirty: true });
+    setValue("email", userEmail ?? "", { shouldDirty: true });
+    setValue("phone", address.phone, { shouldDirty: true });
+    setValue("addressLine1", address.addressLine1, { shouldDirty: true });
+    setValue("addressLine2", address.addressLine2 ?? "", { shouldDirty: true });
+    setValue("city", address.city, { shouldDirty: true });
+    setValue("state", address.state, { shouldDirty: true });
+    setValue("postalCode", address.postalCode, { shouldDirty: true });
+    setValue("country", address.country, { shouldDirty: true });
+  };
   const shippingFee = shippingQuote.shippingAmount;
   const discount = appliedCoupon?.discount ?? 0;
   const total = Math.max(0, subtotal + shippingFee - discount);
@@ -299,7 +376,7 @@ export default function CheckoutClient() {
             quantity: item.quantity,
           })),
           couponId: appliedCoupon?.couponId ?? null,
-          discount: appliedCoupon?.discount ?? 0,
+          saveAddress,
         }),
       });
 
@@ -413,7 +490,7 @@ export default function CheckoutClient() {
     <div className="mx-auto w-full max-w-7xl px-4 py-16 md:px-8">
       <div className="editorial-panel rounded-2xl p-6 md:p-8">
         <p className="font-ui text-xs tracking-[0.16em] text-gold">CHECKOUT</p>
-        <h1 className="mt-3 font-title text-5xl text-ivory">Guest Checkout</h1>
+        <h1 className="mt-3 font-title text-5xl text-ivory">Checkout</h1>
         <p className="mt-3 max-w-3xl font-body text-lg text-stone">
           Confirm shipping details, then place the order with cash on delivery or secure online payment when available. Direct checkout is currently enabled for India deliveries.
         </p>
@@ -517,7 +594,61 @@ export default function CheckoutClient() {
 
           {step === 2 && (
             <div className="space-y-4">
-              <h2 className="font-title text-4xl text-ivory">Delivery Address</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-title text-4xl text-ivory">Delivery Address</h2>
+                  <p className="mt-1 max-w-2xl font-body text-sm text-stone">
+                    Use one of your saved delivery addresses or enter a new address for this order.
+                  </p>
+                </div>
+                <Link
+                  href="/account/addresses"
+                  className="fx-button rounded-full border border-smoke bg-obsidian px-4 py-2 font-ui text-[10px] tracking-[0.14em] text-parchment transition hover:border-gold hover:text-gold"
+                >
+                  Manage addresses
+                </Link>
+              </div>
+
+              {savedAddresses && savedAddresses.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {savedAddresses.map((address) => {
+                    const isActive = address.id === selectedAddressId;
+                    return (
+                      <button
+                        key={address.id}
+                        type="button"
+                        onClick={() => handleUseSavedAddress(address)}
+                        className={cn(
+                          "group rounded-[24px] border p-4 text-left transition hover:border-gold/70",
+                          isActive
+                            ? "border-gold bg-gold/10"
+                            : "border-smoke bg-void/60",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-ui text-xs tracking-[0.14em] uppercase text-parchment">
+                            {address.label}
+                          </p>
+                          <span className={cn(
+                            "rounded-full px-3 py-1 text-[10px] tracking-[0.14em]",
+                            isActive ? "border border-gold bg-gold text-void" : "border border-smoke text-parchment",
+                          )}>
+                            {isActive ? "CURRENT" : "USE"}
+                          </span>
+                        </div>
+                        <div className="mt-3 space-y-1 font-body text-sm text-parchment">
+                          <p className="font-semibold text-ivory">{address.fullName}</p>
+                          <p>{address.addressLine1}</p>
+                          {address.addressLine2 ? <p>{address.addressLine2}</p> : null}
+                          <p>{address.city}, {address.state} - {address.postalCode}</p>
+                          <p>{address.country}</p>
+                          <p className="pt-1 text-stone">{address.phone}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -595,6 +726,85 @@ export default function CheckoutClient() {
                   {errors.state ? <p className="text-sm text-ember">{errors.state.message}</p> : null}
                 </div>
               </div>
+ 
+              {/* Shipping Method Selection */}
+              {shippingQuote.serviceable && (
+                <div className="space-y-3 pt-4 border-t border-smoke/30">
+                  <label className="font-ui text-xs tracking-[0.13em] text-parchment font-semibold">SHIPPING METHOD</label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label
+                      className={cn(
+                        "cursor-pointer rounded-2xl border p-4 transition text-left flex flex-col justify-between",
+                        selectedShippingMethod === "standard"
+                          ? "border-gold bg-gold/10"
+                          : "border-smoke bg-void/60 hover:border-gold/45"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        value="standard"
+                        {...register("shippingMethod")}
+                        className="sr-only"
+                      />
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <p className="font-ui text-xs tracking-[0.14em] text-parchment">STANDARD SHIPPING</p>
+                          <span className="font-mono text-sm text-gold">
+                            {subtotal >= 999 ? "FREE" : "₹70"}
+                          </span>
+                        </div>
+                        <p className="mt-2 font-body text-xs text-stone">
+                          Delivery within 5-7 business days.
+                        </p>
+                      </div>
+                    </label>
+ 
+                    <label
+                      className={cn(
+                        "cursor-pointer rounded-2xl border p-4 transition text-left flex flex-col justify-between",
+                        selectedShippingMethod === "express"
+                          ? "border-gold bg-gold/10"
+                          : "border-smoke bg-void/60 hover:border-gold/45"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        value="express"
+                        {...register("shippingMethod")}
+                        className="sr-only"
+                      />
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <p className="font-ui text-xs tracking-[0.14em] text-parchment">EXPRESS SHIPPING</p>
+                          <span className="font-mono text-sm text-gold font-semibold">₹150</span>
+                        </div>
+                        <p className="mt-2 font-body text-xs text-stone">
+                          Superfast delivery within 2-3 business days.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+ 
+              {isSignedIn ? (
+                <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-smoke bg-void/70 p-4 transition hover:border-gold/60">
+                  <input
+                    type="checkbox"
+                    checked={saveAddress}
+                    onChange={(event) => setSaveAddress(event.target.checked)}
+                    className="mt-1 h-4 w-4 accent-gold"
+                  />
+                  <div>
+                    <p className="font-ui text-xs tracking-[0.12em] text-parchment">
+                      Save this delivery address to your account
+                    </p>
+                    <p className="mt-1 text-sm text-stone">
+                      Saved addresses are available for your future checkout sessions.
+                    </p>
+                  </div>
+                </label>
+              ) : null}
             </div>
           )}
 

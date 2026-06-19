@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { Search, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { Search, SlidersHorizontal, ChevronDown, LayoutGrid, List } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import type { CatalogBook } from "@/lib/types";
 import CatalogBookCard from "@/components/books/CatalogBookCard";
 import { motion } from "@/components/ui/StaticMotion";
+import Image from "next/image";
+import Link from "next/link";
+import AddToCart from "@/components/ui/AddToCart";
+import DecorativeBookCover from "@/components/ui/DecorativeBookCover";
+import { getStockStatusLabel, isBookAvailableForSale } from "@/lib/inventory";
+import { formatINR } from "@/lib/utils";
 
 interface BooksCatalogClientProps {
   books: CatalogBook[];
@@ -18,7 +24,7 @@ interface BooksCatalogStatefulProps extends BooksCatalogClientProps {
   initialPriceFilter: PriceFilter;
 }
 
-type SortOption = "newest" | "oldest" | "price-low" | "price-high" | "title-az";
+type SortOption = "newest" | "oldest" | "price-low" | "price-high" | "title-az" | "best-selling" | "highest-rated";
 type PriceFilter = "all" | "under-400" | "400-600" | "above-600";
 
 const PAGE_SIZE = 12;
@@ -55,6 +61,10 @@ function formatSortLabel(sortOption: SortOption) {
       return "Price: High to Low";
     case "title-az":
       return "Title: A to Z";
+    case "best-selling":
+      return "Best Selling";
+    case "highest-rated":
+      return "Highest Rated";
     case "newest":
     default:
       return "Newest First";
@@ -81,7 +91,9 @@ function parseSortOption(sortOption?: string): SortOption {
     sortOption === "oldest" ||
     sortOption === "price-low" ||
     sortOption === "price-high" ||
-    sortOption === "title-az"
+    sortOption === "title-az" ||
+    sortOption === "best-selling" ||
+    sortOption === "highest-rated"
   ) {
     return sortOption;
   }
@@ -123,6 +135,10 @@ function BooksCatalogStateful({
 }: BooksCatalogStatefulProps) {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [selectedGenre, setSelectedGenre] = useState(initialGenre);
+  const [selectedAuthor, setSelectedAuthor] = useState("all");
+  const [selectedLanguage, setSelectedLanguage] = useState("all");
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState<SortOption>(initialSort);
   const [priceFilter, setPriceFilter] = useState<PriceFilter>(initialPriceFilter);
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,6 +163,14 @@ function BooksCatalogStateful({
     return Array.from(genreSet).sort((a, b) => a.localeCompare(b));
   }, [books]);
 
+  const authors = useMemo(() => {
+    const authorSet = new Set<string>();
+    books.forEach((book) => {
+      if (book.authorName) authorSet.add(book.authorName);
+    });
+    return Array.from(authorSet).sort((a, b) => a.localeCompare(b));
+  }, [books]);
+
   const filteredBooks = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
@@ -154,6 +178,23 @@ function BooksCatalogStateful({
       const inGenre =
         selectedGenre === "all" || book.genreNames.some((genre) => genre === selectedGenre);
       if (!inGenre) {
+        return false;
+      }
+
+      const inAuthor = selectedAuthor === "all" || book.authorName === selectedAuthor;
+      if (!inAuthor) {
+        return false;
+      }
+
+      const inLanguage =
+        selectedLanguage === "all" ||
+        (book.language?.toLowerCase() === selectedLanguage.toLowerCase());
+      if (!inLanguage) {
+        return false;
+      }
+
+      const inStock = !inStockOnly || book.stockStatus !== "out_of_stock";
+      if (!inStock) {
         return false;
       }
 
@@ -187,6 +228,10 @@ function BooksCatalogStateful({
           return (b.price ?? 0) - (a.price ?? 0);
         case "oldest":
           return getComparableDate(a.publicationDate) - getComparableDate(b.publicationDate);
+        case "best-selling":
+          return (b.soldCount ?? 0) - (a.soldCount ?? 0);
+        case "highest-rated":
+          return (b.averageRating ?? 0) - (a.averageRating ?? 0);
         case "newest":
         default:
           return getComparableDate(b.publicationDate) - getComparableDate(a.publicationDate);
@@ -194,12 +239,15 @@ function BooksCatalogStateful({
     });
 
     return filtered;
-  }, [books, priceFilter, searchTerm, selectedGenre, sortOption]);
+  }, [books, priceFilter, searchTerm, selectedGenre, selectedAuthor, selectedLanguage, inStockOnly, sortOption]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBooks.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const hasActiveFilters =
     selectedGenre !== "all" ||
+    selectedAuthor !== "all" ||
+    selectedLanguage !== "all" ||
+    inStockOnly ||
     sortOption !== "newest" ||
     priceFilter !== "all" ||
     Boolean(searchTerm.trim());
@@ -216,6 +264,15 @@ function BooksCatalogStateful({
   return (
 
     <div className="mx-auto w-full max-w-7xl px-4 py-10 md:px-8 md:py-12">
+      <div className="space-y-4 pb-6 text-center md:pb-10">
+        <p className="font-ui text-[10px] uppercase tracking-[0.26em] text-gold">Books</p>
+        <h1 className="text-4xl font-title text-ivory sm:text-5xl">Kothakhahon catalog</h1>
+        <p className="mx-auto max-w-3xl font-body text-base leading-8 text-parchment sm:text-lg">
+          Browse the latest and most enduring Bengali literature editions, poetry, essays, and translated works.
+          Use search, filters, and sorting to narrow the catalog to your reading preferences.
+        </p>
+      </div>
+
       <section className="border-b border-smoke bg-transparent pb-8 pt-2">
         <div className="space-y-6">
           {/* Top Row: Search & Sort */}
@@ -230,8 +287,9 @@ function BooksCatalogStateful({
                   setSearchTerm(event.target.value);
                   setCurrentPage(1);
                 }}
+                aria-label="Search books by title, author, or genre"
                 placeholder="Search title, author, or genre..."
-                className="w-full border-b border-smoke/70 bg-transparent pl-7 pr-8 py-2 font-body text-base text-ivory outline-none transition-all duration-300 focus:border-gold placeholder:text-stone/50"
+                className="w-full border-b border-smoke/70 bg-transparent pl-7 pr-8 py-2 font-body text-base text-ivory outline-none transition-all duration-300 focus:border-gold placeholder:text-stone/60"
               />
               {searchTerm && (
                 <button
@@ -255,6 +313,8 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => setIsSortOpen(!isSortOpen)}
+                  aria-haspopup="listbox"
+                  aria-expanded={isSortOpen}
                   className="flex items-center gap-4 px-3 py-1.5 border border-smoke/75 rounded-md font-ui text-[9px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold transition-all duration-200 cursor-pointer min-w-[155px] justify-between uppercase"
                 >
                   <span>{formatSortLabel(sortOption)}</span>
@@ -263,7 +323,7 @@ function BooksCatalogStateful({
 
                 {isSortOpen && (
                   <div className="absolute right-0 mt-1.5 w-48 bg-void/98 border border-smoke/80 rounded-md shadow-2xl backdrop-blur-md z-30 overflow-hidden py-1 reveal-up">
-                    {(["newest", "oldest", "price-low", "price-high", "title-az"] as SortOption[]).map((option) => (
+                    {(["newest", "oldest", "price-low", "price-high", "title-az", "best-selling", "highest-rated"] as SortOption[]).map((option) => (
                       <button
                         key={option}
                         type="button"
@@ -275,7 +335,7 @@ function BooksCatalogStateful({
                         className={`w-full text-left px-4 py-2 font-ui text-[9px] tracking-[0.12em] uppercase transition-colors duration-150 cursor-pointer ${
                           sortOption === option
                             ? "bg-gold/8 text-gold font-medium"
-                            : "text-stone hover:bg-ash/50 hover:text-gold"
+                            : "text-stone hover:bg-obsidian hover:text-gold"
                         }`}
                       >
                         {formatSortLabel(option)}
@@ -359,6 +419,67 @@ function BooksCatalogStateful({
                 </button>
               ))}
             </div>
+
+            {/* Author, Language, Availability Filters */}
+            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-smoke/35">
+              <div className="flex items-center gap-2">
+                <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">AUTHOR</span>
+                <select
+                  value={selectedAuthor}
+                  onChange={(e) => {
+                    setSelectedAuthor(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-obsidian border border-smoke/75 rounded px-2.5 py-1 font-ui text-[9px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
+                >
+                  <option value="all">ALL AUTHORS</option>
+                  {authors.map((authorName) => (
+                    <option key={authorName} value={authorName}>
+                      {authorName.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 ml-2">
+                <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">LANGUAGE</span>
+                {["all", "Bengali", "English"].map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => {
+                      setSelectedLanguage(lang);
+                      setCurrentPage(1);
+                    }}
+                    className={`rounded-full border px-3 py-1 font-ui text-[9px] tracking-[0.14em] uppercase transition ${
+                      selectedLanguage === lang
+                        ? "border-gold/60 bg-gold/8 text-gold font-medium"
+                        : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
+                    }`}
+                  >
+                    {lang === "all" ? "ALL LANGUAGES" : lang}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 ml-2">
+                <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">AVAILABILITY</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInStockOnly(!inStockOnly);
+                    setCurrentPage(1);
+                  }}
+                  className={`rounded-full border px-3 py-1 font-ui text-[9px] tracking-[0.14em] uppercase transition ${
+                    inStockOnly
+                      ? "border-gold/60 bg-gold/8 text-gold font-medium"
+                      : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
+                  }`}
+                >
+                  IN STOCK ONLY
+                </button>
+              </div>
+            </div>
           </div>
 
           {hasActiveFilters && (
@@ -371,7 +492,40 @@ function BooksCatalogStateful({
                   onClick={() => { setSelectedGenre("all"); setCurrentPage(1); }}
                   className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
-                  {selectedGenre.toUpperCase()}
+                  GENRE: {selectedGenre.toUpperCase()}
+                  <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
+                </button>
+              )}
+
+              {selectedAuthor !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedAuthor("all"); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                >
+                  AUTHOR: {selectedAuthor.toUpperCase()}
+                  <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
+                </button>
+              )}
+
+              {selectedLanguage !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedLanguage("all"); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                >
+                  LANG: {selectedLanguage.toUpperCase()}
+                  <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
+                </button>
+              )}
+
+              {inStockOnly && (
+                <button
+                  type="button"
+                  onClick={() => { setInStockOnly(false); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                >
+                  IN STOCK ONLY
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
                 </button>
               )}
@@ -382,7 +536,7 @@ function BooksCatalogStateful({
                   onClick={() => { setPriceFilter("all"); setCurrentPage(1); }}
                   className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
-                  {formatPriceFilterLabel(priceFilter).toUpperCase()}
+                  PRICE: {formatPriceFilterLabel(priceFilter).toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
                 </button>
               )}
@@ -391,9 +545,9 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setSortOption("newest"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-smoke/70 bg-transparent px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-stone transition-all duration-200 hover:border-gold/40 hover:text-gold cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
-                  {formatSortLabel(sortOption).toUpperCase()}
+                  SORT: {formatSortLabel(sortOption).toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
                 </button>
               )}
@@ -414,6 +568,9 @@ function BooksCatalogStateful({
                 onClick={() => {
                   setSearchTerm("");
                   setSelectedGenre("all");
+                  setSelectedAuthor("all");
+                  setSelectedLanguage("all");
+                  setInStockOnly(false);
                   setPriceFilter("all");
                   setSortOption("newest");
                   setCurrentPage(1);
@@ -439,6 +596,9 @@ function BooksCatalogStateful({
             onClick={() => {
               setSearchTerm("");
               setSelectedGenre("all");
+              setSelectedAuthor("all");
+              setSelectedLanguage("all");
+              setInStockOnly(false);
               setPriceFilter("all");
               setSortOption("newest");
               setCurrentPage(1);
@@ -457,24 +617,147 @@ function BooksCatalogStateful({
                 Showing {showingFrom}-{showingTo} of {filteredBooks.length} titles
               </p>
             </div>
-            <p className="font-ui text-[10px] tracking-[0.14em] text-stone">
-              Page {safeCurrentPage} of {totalPages}
-            </p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center border border-smoke/70 rounded-md overflow-hidden bg-void/50">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  className={`p-1.5 transition-colors cursor-pointer ${
+                    viewMode === "grid" ? "bg-gold text-void" : "text-stone hover:text-gold"
+                  }`}
+                  title="Grid view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  className={`p-1.5 transition-colors cursor-pointer ${
+                    viewMode === "list" ? "bg-gold text-void" : "text-stone hover:text-gold"
+                  }`}
+                  title="List view"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="font-ui text-[10px] tracking-[0.14em] text-stone hidden sm:block">
+                Page {safeCurrentPage} of {totalPages}
+              </p>
+            </div>
           </div>
 
-          <motion.div
-            key={`${selectedGenre}-${priceFilter}-${sortOption}-${searchTerm}-${safeCurrentPage}`}
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4"
-          >
-            {visibleBooks.map((book) => (
-              <motion.div key={book.id} variants={itemVariants} transition={{ duration: 0.25 }}>
-                <CatalogBookCard book={book} />
-              </motion.div>
-            ))}
-          </motion.div>
+          {viewMode === "grid" ? (
+            <motion.div
+              key={`grid-${selectedGenre}-${priceFilter}-${sortOption}-${searchTerm}-${safeCurrentPage}`}
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4"
+            >
+              {visibleBooks.map((book) => (
+                <motion.div key={book.id} variants={itemVariants} transition={{ duration: 0.25 }}>
+                  <CatalogBookCard book={book} />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`list-${selectedGenre}-${priceFilter}-${sortOption}-${searchTerm}-${safeCurrentPage}`}
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="mt-6 flex flex-col gap-4"
+            >
+              {visibleBooks.map((book) => {
+                const isAvailable = isBookAvailableForSale(book);
+                return (
+                  <motion.div
+                    key={book.id}
+                    variants={itemVariants}
+                    transition={{ duration: 0.25 }}
+                    className="fx-card group relative overflow-hidden rounded-2xl border border-smoke bg-obsidian/85 p-4 transition hover:border-gold/60 hover:shadow-[0_16px_45px_rgba(201,151,58,0.12)] flex gap-5 items-stretch"
+                  >
+                    <Link
+                      href={`/books/${book.slug}`}
+                      className="absolute inset-0 z-10 rounded-2xl"
+                      aria-label={`Open ${book.title}`}
+                    />
+                    
+                    {/* Cover Image on Left */}
+                    <div className="book-edge relative aspect-[3/4] w-24 shrink-0 overflow-hidden rounded-xl bg-void/50">
+                      {book.coverImageUrl ? (
+                        <Image
+                          src={book.coverImageUrl}
+                          alt={book.title}
+                          fill
+                          sizes="96px"
+                          className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                        />
+                      ) : (
+                        <DecorativeBookCover
+                          title={book.title}
+                          subtitle={book.authorName}
+                          compact
+                          className="rounded-none border-0"
+                        />
+                      )}
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-void/90 via-transparent to-transparent" />
+                    </div>
+
+                    {/* Info on Right */}
+                    <div className="flex-1 flex flex-col justify-between relative z-20">
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <span className="rounded-full border border-gold/40 bg-void/80 px-2 py-0.5 font-ui text-[9px] tracking-[0.14em] text-gold uppercase">
+                            BOOK
+                          </span>
+                          <span className="rounded-full border border-smoke bg-void/80 px-2 py-0.5 font-ui text-[9px] tracking-[0.14em] text-parchment uppercase">
+                            {getStockStatusLabel(book.stockStatus).toUpperCase()}
+                          </span>
+                        </div>
+
+                        <h3 className="text-safe font-title text-[1.4rem] leading-tight text-ivory sm:text-[1.7rem]">
+                          {book.title}
+                        </h3>
+                        <p className="font-body text-sm text-stone">{book.authorName}</p>
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {book.genreNames.map((genre) => (
+                            <span
+                              key={`${book.id}-${genre}`}
+                              className="rounded-full border border-smoke/70 px-2.5 py-0.5 font-mono text-[9px] text-stone"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Pricing and Action row */}
+                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-smoke/45 mt-2">
+                        <p className="rounded-full border border-smoke px-3 py-1 font-mono text-xs text-parchment">
+                          {formatINR(book.price)}
+                        </p>
+                        <AddToCart
+                          bookId={book.id}
+                          title={book.title}
+                          price={book.price}
+                          authorName={book.authorName}
+                          coverImageUrl={book.coverImageUrl}
+                          disabled={!isAvailable}
+                          label="ADD TO CART"
+                          addedLabel="ADDED TO CART"
+                          mobileLabel="ADD"
+                          mobileAddedLabel="ADDED"
+                          className="px-4 py-2 text-[10px] tracking-[0.14em]"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
 
           {totalPages > 1 ? (
             <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
@@ -520,7 +803,9 @@ function BooksCatalogStateful({
   );
 }
 
-export default function BooksCatalogClient({ books }: BooksCatalogClientProps) {
+export default function BooksCatalogClient({
+  books,
+}: BooksCatalogClientProps) {
   const searchParams = useSearchParams();
   const paramsKey = searchParams.toString();
 

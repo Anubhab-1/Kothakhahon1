@@ -2,70 +2,85 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { requireSession } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/admin";
 
-function buildRedirect(path: string, params: Record<string, string>) {
-  const sp = new URLSearchParams(params);
-  return `${path}?${sp.toString()}`;
+function optionalString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
 }
 
-export async function submitReviewAction(formData: FormData) {
-  const session = await requireSession("/login");
+export async function createBookReviewAction(formData: FormData) {
+  const bookId = optionalString(formData, "bookId");
+  const bookSlug = optionalString(formData, "bookSlug");
+  const reviewerName = optionalString(formData, "reviewerName");
+  const title = optionalString(formData, "title");
+  const body = optionalString(formData, "body");
+  const rating = Number.parseInt(optionalString(formData, "rating"), 10);
+  const nextPath = bookSlug ? `/books/${bookSlug}` : "/books";
+  const session = await requireSession(`${nextPath}#reviews`);
 
-  const bookId   = (formData.get("bookId")   as string).trim();
-  const bookSlug = (formData.get("bookSlug") as string).trim();
-  const rating   = parseInt(formData.get("rating") as string, 10);
-  const title    = (formData.get("title")    as string | null)?.trim() || null;
-  const body     = (formData.get("body")     as string | null)?.trim() || null;
-
-  if (!bookId || !bookSlug) {
-    redirect(buildRedirect(`/books/${bookSlug}`, { reviewError: "Invalid book reference." }));
+  if (session.role === "ADMIN") {
+    redirect(`${nextPath}?review=admin#reviews`);
   }
 
-  if (!rating || rating < 1 || rating > 5) {
-    redirect(buildRedirect(`/books/${bookSlug}`, { reviewError: "Please select a star rating." }));
+  if (!bookId || !bookSlug || Number.isNaN(rating) || rating < 1 || rating > 5) {
+    redirect(`${nextPath}?review=invalid#reviews`);
   }
 
-  // One review per user per book — upsert so re-submits update, not error
-  const existing = await db.review.findUnique({
-    where: { userId_bookId: { userId: session.userId, bookId } },
+  const book = await db.book.findUnique({
+    where: { id: bookId },
+    select: { id: true, slug: true },
+  });
+
+  if (!book || book.slug !== bookSlug) {
+    redirect("/books?review=missing");
+  }
+
+  const purchase = await db.order.findFirst({
+    where: {
+      userId: session.userId,
+      status: { in: ["paid", "processing", "packed", "shipped", "delivered"] },
+      items: {
+        some: { bookId },
+      },
+    },
     select: { id: true },
   });
 
-  if (existing) {
-    redirect(buildRedirect(`/books/${bookSlug}`, { reviewError: "You have already reviewed this book. Contact us to update your review." }));
-  }
-
-  // Check if user has purchased this book (verified badge)
-  const hasPurchased = !!(await db.order.findFirst({
+  await db.review.upsert({
     where: {
-      OR: [{ userId: session.userId }, { customerEmail: session.email }],
-      status: { in: ["delivered", "shipped", "packed"] },
-      items: { some: { bookId } },
+      userId_bookId: {
+        userId: session.userId,
+        bookId,
+      },
     },
-    select: { id: true },
-  }));
-
-  await db.review.create({
-    data: {
+    update: {
+      reviewerName: reviewerName || session.fullName || session.email,
+      rating,
+      title: title || null,
+      body: body || null,
+      approved: false,
+      purchaseVerified: Boolean(purchase),
+    },
+    create: {
       bookId,
       bookSlug,
       userId: session.userId,
-      reviewerName: session.fullName ?? session.email.split("@")[0],
+      reviewerName: reviewerName || session.fullName || session.email,
       rating,
-      title,
-      body,
-      approved: false,       // admin must approve
-      purchaseVerified: hasPurchased,
+      title: title || null,
+      body: body || null,
+      approved: false,
+      purchaseVerified: Boolean(purchase),
     },
   });
 
   revalidatePath(`/books/${bookSlug}`);
-  redirect(buildRedirect(`/books/${bookSlug}`, { reviewNotice: "Thank you! Your review has been submitted and will appear after moderation." }));
+  revalidatePath("/admin/reviews");
+  redirect(`${nextPath}?review=submitted#reviews`);
 }
-
-import { requireAdminSession } from "@/lib/auth/admin";
 
 export async function moderateReviewAction(formData: FormData) {
   await requireAdminSession();

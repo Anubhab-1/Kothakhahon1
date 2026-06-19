@@ -67,9 +67,33 @@ export default async function AdminBooksPage({ searchParams }: AdminBooksPagePro
         title="Catalog Library"
         description="Edit the live book list, featured titles, chapter previews, and metadata used by checkout."
         actions={
-          <Link href="/admin/books/new" className="admin-link-button">
-            Add New Book
-          </Link>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <Link
+              href="/admin/books/bulk-upload"
+              className="admin-link-button"
+              style={{
+                background: "rgba(201,151,58,0.1)",
+                color: "#dfb362",
+                border: "1px solid rgba(201,151,58,0.25)",
+              }}
+            >
+              Bulk Upload
+            </Link>
+            <Link
+              href="/admin/books/bulk-update-price"
+              className="admin-link-button"
+              style={{
+                background: "rgba(99,102,241,0.1)",
+                color: "#a5b4fc",
+                border: "1px solid rgba(99,102,241,0.25)",
+              }}
+            >
+              Bulk Update Prices
+            </Link>
+            <Link href="/admin/books/new" className="admin-link-button">
+              Add New Book
+            </Link>
+          </div>
         }
       />
 

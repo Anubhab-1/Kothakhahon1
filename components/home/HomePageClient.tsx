@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { BookHeart, BookOpen, CreditCard, PackageCheck, ScrollText, Sparkles } from "lucide-react";
+import { BookOpen, CreditCard, PackageCheck, ScrollText } from "lucide-react";
 import BookCard from "@/components/ui/BookCard";
 import NewsletterForm from "@/components/ui/NewsletterForm";
 import SectionHeader from "@/components/ui/SectionHeader";

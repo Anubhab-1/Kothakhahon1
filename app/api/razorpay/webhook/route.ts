@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
-import { queuePaidOrderEmails, runEmailJobsAfterResponse } from "@/lib/email-jobs";
+import { queuePaidOrderEmails, queueFailedPaymentAdminEmail, runEmailJobsAfterResponse } from "@/lib/email-jobs";
 import {
   finalizePaidRazorpayOrder,
   isRazorpayWebhookSignatureValid,
@@ -54,6 +54,10 @@ function getPaymentEntity(value: unknown) {
     notes && "local_order_id" in notes && typeof notes.local_order_id === "string"
       ? notes.local_order_id
       : undefined;
+  const errorDescription =
+    "error_description" in entity && typeof entity.error_description === "string"
+      ? entity.error_description
+      : "Unknown Razorpay payment failure";
 
   if (!paymentId || !razorpayOrderId) {
     return null;
@@ -63,6 +67,7 @@ function getPaymentEntity(value: unknown) {
     paymentId,
     razorpayOrderId,
     localOrderId,
+    errorDescription,
   };
 }
 
@@ -136,9 +141,19 @@ export async function POST(request: Request) {
   if (eventName === "payment.failed") {
     const payment = getPaymentEntity(webhookBody);
     if (payment) {
-      await markRazorpayOrderFailed({
+      const result = await markRazorpayOrderFailed({
         razorpayOrderId: payment.razorpayOrderId,
       });
+      if (result.outcome === "marked_failed") {
+        try {
+          await queueFailedPaymentAdminEmail(result.orderId, payment.errorDescription);
+          runEmailJobsAfterResponse();
+        } catch (error) {
+          console.error(
+            error instanceof Error ? error.message : "Failed payment email job enqueue failed."
+          );
+        }
+      }
     }
 
     return NextResponse.json({

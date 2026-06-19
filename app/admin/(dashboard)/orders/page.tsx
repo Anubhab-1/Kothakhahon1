@@ -25,6 +25,8 @@ interface AdminOrdersPageProps {
     payment?: string;
     method?: string;
     page?: string;
+    sort?: string;
+    dateRange?: string;
   }>;
 }
 
@@ -59,6 +61,41 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
     paymentMethods.includes((params.method as PaymentMethod | "all") ?? "all")
       ? ((params.method as PaymentMethod | "all") ?? "all")
       : "all";
+  const sort =
+    params.sort && ["newest", "oldest", "amount_asc", "amount_desc"].includes(params.sort)
+      ? params.sort
+      : "newest";
+  const dateRange =
+    params.dateRange && ["all", "today", "yesterday", "this_week", "this_month"].includes(params.dateRange)
+      ? params.dateRange
+      : "all";
+
+  let dateFilter: Prisma.DateTimeFilter | undefined;
+  const now = new Date();
+
+  if (dateRange === "today") {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    dateFilter = { gte: start };
+  } else if (dateRange === "yesterday") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setDate(now.getDate() - 1);
+    end.setHours(23, 59, 59, 999);
+    dateFilter = { gte: start, lte: end };
+  } else if (dateRange === "this_week") {
+    const start = new Date(now);
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    start.setDate(diff);
+    start.setHours(0, 0, 0, 0);
+    dateFilter = { gte: start };
+  } else if (dateRange === "this_month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    dateFilter = { gte: start };
+  }
 
   const where: Prisma.OrderWhereInput = {
     ...(q
@@ -73,7 +110,17 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
     ...(status !== "all" ? { status } : {}),
     ...(payment !== "all" ? { paymentStatus: payment } : {}),
     ...(method !== "all" ? { paymentMethod: method } : {}),
+    ...(dateFilter ? { createdAt: dateFilter } : {}),
   };
+
+  let orderBy: Prisma.OrderOrderByWithRelationInput = { createdAt: "desc" };
+  if (sort === "oldest") {
+    orderBy = { createdAt: "asc" };
+  } else if (sort === "amount_asc") {
+    orderBy = { totalAmount: "asc" };
+  } else if (sort === "amount_desc") {
+    orderBy = { totalAmount: "desc" };
+  }
 
   const totalCount = await db.order.count({ where });
   const pagination = getPagination(totalCount, requestedPage);
@@ -82,9 +129,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
     include: {
       items: true,
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy,
     skip: pagination.skip,
     take: pagination.take,
   });
@@ -94,6 +139,8 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
     status: status !== "all" ? status : undefined,
     payment: payment !== "all" ? payment : undefined,
     method: method !== "all" ? method : undefined,
+    sort: sort !== "newest" ? sort : undefined,
+    dateRange: dateRange !== "all" ? dateRange : undefined,
   };
 
   return (
@@ -116,7 +163,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
           </span>
         </div>
 
-        <form className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.7fr))_auto]">
+        <form className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(0,0.7fr))_auto]">
           <input
             type="text"
             name="q"
@@ -144,6 +191,19 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                 {value === "all" ? "All methods" : getPaymentMethodLabel(value)}
               </option>
             ))}
+          </select>
+          <select name="dateRange" className="admin-select" defaultValue={dateRange}>
+            <option value="all">All Dates</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="this_week">This Week</option>
+            <option value="this_month">This Month</option>
+          </select>
+          <select name="sort" className="admin-select" defaultValue={sort}>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="amount_asc">Amount (Low to High)</option>
+            <option value="amount_desc">Amount (High to Low)</option>
           </select>
           <button type="submit" className="admin-button">
             Apply

@@ -1,7 +1,16 @@
+import type { Metadata } from "next";
 import AuthorsIndexClient, {
   type AuthorIndexItem,
 } from "@/components/authors/AuthorsIndexClient";
 import { getAllAuthors, getAllBooks } from "@/lib/content";
+
+export const metadata: Metadata = {
+  title: "Our Authors | Kothakhahon Editorial Desk",
+  description: "Explore profiles, biographies, and publications of the writers and poets who shape the Kothakhahon catalog.",
+  alternates: {
+    canonical: "/authors",
+  },
+};
 
 export const revalidate = 60;
 

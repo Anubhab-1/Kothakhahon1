@@ -1,16 +1,10 @@
 import Link from "next/link";
 import {
   BookOpen,
-  LayoutDashboard,
-  Users,
   FileText,
   ShoppingBag,
   Mail,
-  ScrollText,
-  Send,
-  Settings,
   LogOut,
-  Zap,
   Shield,
 } from "lucide-react";
 import { logoutAdminAction } from "@/app/admin/actions";

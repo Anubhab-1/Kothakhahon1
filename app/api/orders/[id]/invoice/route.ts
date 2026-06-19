@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import {
   buildInvoiceFilename,
   buildInvoiceNumber,
-  renderInvoiceHtml,
+  generateInvoicePdf,
 } from "@/lib/invoices";
 
 interface RouteContext {
@@ -61,16 +61,16 @@ export async function GET(_request: Request, { params }: RouteContext) {
     });
   }
 
-  const html = renderInvoiceHtml({
+  const pdfBuffer = generateInvoicePdf({
     ...order,
     invoiceNumber,
     invoiceIssuedAt,
   });
 
-  return new NextResponse(html, {
+  return new NextResponse(new Uint8Array(pdfBuffer), {
     status: 200,
     headers: {
-      "Content-Type": "text/html; charset=utf-8",
+      "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${buildInvoiceFilename(invoiceNumber)}"`,
       "Cache-Control": "private, no-store",
     },

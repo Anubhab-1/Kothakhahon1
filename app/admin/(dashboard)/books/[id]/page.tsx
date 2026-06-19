@@ -79,6 +79,10 @@ export default async function AdminBookDetailPage({
           averageRating: book.averageRating?.toString() ?? "",
           reviewCount: String(book.reviewCount ?? 0),
           genres: book.genres.map((item) => item.genre.name),
+          publisher: book.publisher ?? "",
+          compareAtPrice: book.compareAtPrice?.toString() ?? "",
+          galleryImages: book.galleryImages,
+          tableOfContents: book.tableOfContents ?? "",
         }}
       />
     </div>

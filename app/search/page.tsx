@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Search, BookOpen, User, FileText, SearchX } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatINR } from "@/lib/utils";
+import SearchBoxClient from "@/components/search/SearchBoxClient";
 
 export const dynamic = "force-dynamic";
 
@@ -70,28 +71,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <div className="grain-overlay mx-auto w-full max-w-7xl px-4 py-12 md:px-8">
       {/* Search bar */}
-      <div className="relative">
-        <form method="GET" action="/search">
-          <span className="relative flex items-center">
-            <Search className="pointer-events-none absolute left-4 h-5 w-5 text-stone" />
-            <input
-              type="search"
-              name="q"
-              defaultValue={query}
-              autoFocus
-              autoComplete="off"
-              placeholder="Search books, authors, journal posts…"
-              className="w-full rounded-2xl border border-smoke bg-void py-4 pl-12 pr-5 font-body text-lg text-ivory outline-none ring-gold transition placeholder:text-stone/50 focus:ring-1"
-            />
-            <button
-              type="submit"
-              className="absolute right-3 rounded-xl border border-gold bg-gold px-4 py-2 font-ui text-[11px] tracking-[0.14em] text-void transition hover:bg-gold-dim"
-            >
-              SEARCH
-            </button>
-          </span>
-        </form>
-      </div>
+      <SearchBoxClient initialQuery={query} />
 
       {/* State: idle */}
       {!isSearching && (

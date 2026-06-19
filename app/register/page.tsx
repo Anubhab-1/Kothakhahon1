@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import AuthSubmitButton from "@/components/auth/AuthSubmitButton";
-import { registerAction } from "@/app/auth/actions";
 import { getSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = {

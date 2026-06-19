@@ -12,6 +12,12 @@ import { commitOrderInventory, InventoryAdjustmentError } from "@/lib/order-inve
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getShippingQuote } from "@/lib/shipping";
 import { getSession } from "@/lib/auth/session";
+import {
+  calculateCouponDiscount,
+  consumeCouponForOrder,
+  CouponUsageError,
+  releaseCouponForOrder,
+} from "@/lib/coupons";
 
 const shippingAddressSchema = z.object({
   fullName: z.string().min(2),
@@ -23,6 +29,7 @@ const shippingAddressSchema = z.object({
   state: z.string().min(2),
   postalCode: z.string().min(4),
   country: z.string().min(2),
+  shippingMethod: z.enum(["standard", "express"]).optional().default("standard"),
 });
 
 const requestSchema = z.object({
@@ -36,6 +43,7 @@ const requestSchema = z.object({
     )
     .min(1),
   paymentMethod: z.enum(["razorpay", "cod"]).default("razorpay"),
+  saveAddress: z.boolean().optional().default(false),
   // couponId from client is only used as a lookup key — discount re-computed server-side
   couponId: z.string().optional().nullable(),
 });
@@ -154,7 +162,7 @@ async function getAuthoritativePricedItems(items: z.infer<typeof requestSchema>[
 
 export async function POST(request: Request) {
   const clientId = getClientIdentifier(request);
-  const rateLimit = checkRateLimit({
+  const rateLimit = await checkRateLimit({
     key: `checkout:${clientId}`,
     limit: 6,
     windowMs: 60_000,
@@ -186,6 +194,22 @@ export async function POST(request: Request) {
 
   const session = await getSession();
   const normalizedEmail = payload.shippingAddress.email.toLowerCase();
+
+  // Check if email belongs to a registered user who is unverified
+  const registeredUser = await db.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { emailVerifiedAt: true },
+  });
+  if (registeredUser && !registeredUser.emailVerifiedAt) {
+    return NextResponse.json(
+      {
+        error:
+          "Please verify your email address before placing an order. Check your inbox for the verification link or log in to resend it.",
+      },
+      { status: 400 },
+    );
+  }
+
   const ownedBySession =
     session?.role === "CUSTOMER" && session.email.toLowerCase() === normalizedEmail;
 
@@ -196,12 +220,13 @@ export async function POST(request: Request) {
   const shippingQuote = getShippingQuote({
     country: payload.shippingAddress.country,
     subtotalAmount,
+    shippingMethod: payload.shippingAddress.shippingMethod,
   });
   const shippingAmount = shippingQuote.shippingAmount;
 
   // ── Server-side coupon validation ───────────────────────────────────────
   let couponDiscount = 0;
-  let validatedCoupon: { id: string; type: string; value: number } | null = null;
+  let validatedCoupon: { id: string; code: string; type: "percent" | "flat"; value: number } | null = null;
 
   if (payload.couponId) {
     const coupon = await db.coupon.findUnique({
@@ -217,10 +242,11 @@ export async function POST(request: Request) {
       (coupon.minOrderAmount === null || subtotalAmount >= coupon.minOrderAmount);
 
     if (couponValid) {
-      couponDiscount =
-        coupon.type === "percent"
-          ? Math.round((subtotalAmount * coupon.value) / 100)
-          : Math.min(coupon.value, subtotalAmount);
+      couponDiscount = calculateCouponDiscount({
+        type: coupon.type,
+        value: coupon.value,
+        subtotalAmount,
+      });
       validatedCoupon = coupon;
     }
   }
@@ -256,6 +282,10 @@ export async function POST(request: Request) {
           country: payload.shippingAddress.country,
           subtotalAmount,
           shippingAmount,
+          shippingMethod: payload.shippingAddress.shippingMethod ?? "standard",
+          discountAmount,
+          couponId: validatedCoupon?.id ?? null,
+          couponCode: validatedCoupon?.code ?? null,
           totalAmount,
           items: {
             create: pricedResult.items.map((item) => ({
@@ -276,17 +306,11 @@ export async function POST(request: Request) {
 
       // Atomically record coupon usage and increment usedCount
       if (validatedCoupon) {
-        await tx.couponUse.create({
-          data: {
-            couponId: validatedCoupon.id,
-            orderId: createdOrder.id,
-            userId: ownedBySession ? session.userId : null,
-            discount: discountAmount,
-          },
-        });
-        await tx.coupon.update({
-          where: { id: validatedCoupon.id },
-          data: { usedCount: { increment: 1 } },
+        await consumeCouponForOrder(tx, {
+          couponId: validatedCoupon.id,
+          orderId: createdOrder.id,
+          userId: ownedBySession ? session.userId : null,
+          discount: discountAmount,
         });
       }
 
@@ -294,10 +318,60 @@ export async function POST(request: Request) {
         await commitOrderInventory(tx, createdOrder.id);
       }
 
+      // Save the checkout address to the customer's saved addresses when requested.
+      if (ownedBySession && payload.saveAddress) {
+        const addressExists = await tx.address.findFirst({
+          where: {
+            userId: session.userId,
+            fullName: payload.shippingAddress.fullName,
+            phone: payload.shippingAddress.phone,
+            addressLine1: payload.shippingAddress.addressLine1,
+            addressLine2: payload.shippingAddress.addressLine2 ?? null,
+            city: payload.shippingAddress.city,
+            state: payload.shippingAddress.state,
+            postalCode: payload.shippingAddress.postalCode,
+            country: payload.shippingAddress.country,
+          },
+        });
+
+        if (!addressExists) {
+          const existingCount = await tx.address.count({
+            where: { userId: session.userId },
+          });
+
+          await tx.address.create({
+            data: {
+              userId: session.userId,
+              label: existingCount === 0 ? "Home" : "Other",
+              fullName: payload.shippingAddress.fullName,
+              phone: payload.shippingAddress.phone,
+              addressLine1: payload.shippingAddress.addressLine1,
+              addressLine2: payload.shippingAddress.addressLine2 ?? null,
+              city: payload.shippingAddress.city,
+              state: payload.shippingAddress.state,
+              postalCode: payload.shippingAddress.postalCode,
+              country: payload.shippingAddress.country,
+              isDefault: existingCount === 0,
+            },
+          });
+        }
+      }
+
+      // Clear user's DB cart if logged in and order owned by session
+      if (ownedBySession) {
+        await tx.cartItem.deleteMany({
+          where: { userId: session.userId },
+        });
+      }
+
       return createdOrder;
     });
   } catch (error) {
     if (error instanceof InventoryAdjustmentError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+
+    if (error instanceof CouponUsageError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
@@ -321,12 +395,15 @@ export async function POST(request: Request) {
 
   const { keyId, keySecret, publicKey } = getRazorpayConfig();
   if (!keyId || !keySecret || !publicKey) {
-    await db.order.update({
-      where: { id: order.id },
-      data: {
-        status: "cancelled",
-        paymentStatus: "failed",
-      },
+    await db.$transaction(async (tx) => {
+      await releaseCouponForOrder(tx, order.id);
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: "cancelled",
+          paymentStatus: "failed",
+        },
+      });
     });
 
     return NextResponse.json({ error: "Razorpay is not configured." }, { status: 503 });
@@ -364,12 +441,15 @@ export async function POST(request: Request) {
       key: publicKey,
     });
   } catch {
-    await db.order.update({
-      where: { id: order.id },
-      data: {
-        status: "cancelled",
-        paymentStatus: "failed",
-      },
+    await db.$transaction(async (tx) => {
+      await releaseCouponForOrder(tx, order.id);
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: "cancelled",
+          paymentStatus: "failed",
+        },
+      });
     });
 
     return NextResponse.json({ error: "Razorpay order creation failed." }, { status: 500 });

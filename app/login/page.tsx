@@ -21,6 +21,8 @@ interface LoginPageProps {
     error?: string;
     notice?: string;
     next?: string;
+    unverified?: string;
+    email?: string;
   }>;
 }
 
@@ -137,7 +139,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </div>
             ) : null}
 
-            <LoginFormClient nextPath={next} initialError={params.error} />
+            <LoginFormClient
+              nextPath={next}
+              initialError={params.error}
+              unverified={params.unverified === "true"}
+              email={params.email}
+            />
 
             <p className="mt-6 font-body text-sm text-stone">
               New here?{" "}

@@ -62,6 +62,12 @@ export interface Book {
   stockQuantity?: number;
   lowStockThreshold?: number;
   stockStatus?: StockStatus;
+  publisher?: string;
+  compareAtPrice?: number;
+  galleryImages?: string[];
+  tableOfContents?: string;
+  soldCount?: number;
+  viewCount?: number;
 }
 
 export interface CatalogBook {
@@ -76,6 +82,9 @@ export interface CatalogBook {
   stockQuantity: number;
   lowStockThreshold: number;
   stockStatus: StockStatus;
+  language?: string;
+  soldCount?: number;
+  averageRating?: number;
 }
 
 export interface RelatedBook {
@@ -91,7 +100,9 @@ export interface BookReviewView {
   id: string;
   reviewerName: string;
   rating: number;
-  text: string;
+  title?: string;
+  body?: string;
+  purchaseVerified: boolean;
   createdAt: string;
 }
 
@@ -109,6 +120,7 @@ export interface BookDetailView {
   pullQuote: string;
   chapterPreview: string;
   price?: number;
+  compareAtPrice?: number;
   buyLink?: string;
   publicationDate?: string;
   pageCount?: number;
@@ -119,6 +131,9 @@ export interface BookDetailView {
   stockQuantity: number;
   lowStockThreshold: number;
   stockStatus: StockStatus;
+  publisher?: string;
+  galleryImages: string[];
+  tableOfContents?: string;
 }
 
 export interface BlogPost {
@@ -234,14 +249,6 @@ export interface CartItem {
   added_at: string;
 }
 
-export interface WishlistItem {
-  id: string;
-  user_id: string;
-  book_id: string;
-  book_title: string;
-  book_cover_url?: string;
-  added_at: string;
-}
 
 export interface Review {
   id: string;

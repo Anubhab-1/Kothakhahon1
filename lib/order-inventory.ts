@@ -1,11 +1,28 @@
 import { Prisma } from "@/generated/prisma/client";
 import { getDerivedStockStatus } from "@/lib/inventory";
+import { queueLowStockAdminEmail } from "@/lib/email-jobs";
 
 export class InventoryAdjustmentError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "InventoryAdjustmentError";
   }
+}
+
+export function getStockAdjustmentData({
+  nextQuantity,
+  lowStockThreshold,
+  soldQuantity = 0,
+}: {
+  nextQuantity: number;
+  lowStockThreshold: number;
+  soldQuantity?: number;
+}) {
+  return {
+    stockQuantity: nextQuantity,
+    stockStatus: getDerivedStockStatus(nextQuantity, lowStockThreshold),
+    ...(soldQuantity > 0 ? { soldCount: { increment: soldQuantity } } : {}),
+  };
 }
 
 async function getOrderForInventory(tx: Prisma.TransactionClient, orderId: string) {
@@ -37,6 +54,7 @@ async function adjustBookStock(
   bookId: string,
   quantityDelta: number,
   bookTitle: string,
+  options: { countAsSale?: boolean } = {},
 ) {
   const book = await tx.book.findUnique({
     where: { id: bookId },
@@ -58,11 +76,16 @@ async function adjustBookStock(
 
   await tx.book.update({
     where: { id: bookId },
-    data: {
-      stockQuantity: nextQuantity,
-      stockStatus: getDerivedStockStatus(nextQuantity, book.lowStockThreshold),
-    },
+    data: getStockAdjustmentData({
+      nextQuantity,
+      lowStockThreshold: book.lowStockThreshold,
+      soldQuantity: options.countAsSale && quantityDelta < 0 ? Math.abs(quantityDelta) : 0,
+    }),
   });
+
+  if (quantityDelta < 0 && nextQuantity <= book.lowStockThreshold) {
+    await queueLowStockAdminEmail(bookId, tx);
+  }
 }
 
 export async function commitOrderInventory(tx: Prisma.TransactionClient, orderId: string) {
@@ -79,7 +102,9 @@ export async function commitOrderInventory(tx: Prisma.TransactionClient, orderId
   }
 
   for (const item of order.items) {
-    await adjustBookStock(tx, item.bookId, -item.quantity, item.bookTitle);
+    await adjustBookStock(tx, item.bookId, -item.quantity, item.bookTitle, {
+      countAsSale: true,
+    });
   }
 
   await tx.order.update({

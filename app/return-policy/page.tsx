@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import InfoPageShell from "@/components/site/InfoPageShell";
 
-export const metadata = {
-  title: "Return Policy",
+export const metadata: Metadata = {
+  title: "Returns & Cancellations Policy | Kothakhahon",
+  description: "Read our return guidelines, damaged order replacements, and cancellation windows for book purchases.",
+  alternates: {
+    canonical: "/return-policy",
+  },
 };
 
 export default function ReturnPolicyPage() {

@@ -1,11 +1,16 @@
+import type { Metadata } from "next";
 import InfoPageShell from "@/components/site/InfoPageShell";
 import {
   INDIA_FREE_SHIPPING_THRESHOLD,
   INDIA_STANDARD_SHIPPING_AMOUNT,
 } from "@/lib/shipping";
 
-export const metadata = {
-  title: "Shipping Policy",
+export const metadata: Metadata = {
+  title: "Shipping & Delivery Timelines | Kothakhahon",
+  description: "Review shipping coverage, tracking options, and dispatch timelines for orders within India and international regions.",
+  alternates: {
+    canonical: "/shipping-policy",
+  },
 };
 
 export default function ShippingPolicyPage() {

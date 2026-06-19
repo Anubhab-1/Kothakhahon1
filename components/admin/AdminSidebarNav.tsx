@@ -22,6 +22,7 @@ const sections = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/books", label: "Books", icon: BookOpen },
   { href: "/admin/authors", label: "Authors", icon: Users },
+  { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/blog", label: "Journal", icon: FileText },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/reviews", label: "Reviews", icon: Star },

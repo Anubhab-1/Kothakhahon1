@@ -1,67 +1,119 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
-import { toggleWishlistAction } from "@/app/account/wishlist/actions";
+import { usePublicSession } from "@/components/auth/PublicSessionProvider";
+import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface WishlistButtonProps {
   bookId: string;
   bookSlug: string;
-  bookTitle: string;
-  bookAuthor: string;
-  bookCoverUrl?: string | null;
-  price?: number | null;
-  isSaved: boolean;
   className?: string;
 }
 
-export default function WishlistButton({
-  bookId,
-  bookSlug,
-  bookTitle,
-  bookAuthor,
-  bookCoverUrl,
-  price,
-  isSaved,
-  className,
-}: WishlistButtonProps) {
-  const [isPending, startTransition] = useTransition();
+interface WishlistResponseItem {
+  bookId: string;
+}
+
+export default function WishlistButton({ bookId, className }: WishlistButtonProps) {
+  const session = usePublicSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    if (!session?.id) {
+      setIsInWishlist(false);
+      return;
+    }
+
+    let active = true;
+    async function checkWishlistStatus() {
+      setChecking(true);
+      try {
+        const res = await fetch("/api/wishlist");
+        if (res.ok) {
+          const data = await res.json();
+          if (active && Array.isArray(data.items)) {
+            const found = data.items.some((item: WishlistResponseItem) => item.bookId === bookId);
+            setIsInWishlist(found);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check wishlist status:", err);
+      } finally {
+        if (active) setChecking(false);
+      }
+    }
+
+    void checkWishlistStatus();
+    return () => {
+      active = false;
+    };
+  }, [bookId, session?.id]);
+
+  const handleToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!session?.id) {
+      // Redirect to login page with callback
+      router.push(`/login?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
+
+    if (loading || checking) return;
+
+    setLoading(true);
+    try {
+      if (isInWishlist) {
+        const res = await fetch(`/api/wishlist?bookId=${bookId}`, {
+          method: "DELETE",
+        });
+        if (res.ok) {
+          setIsInWishlist(false);
+        }
+      } else {
+        const res = await fetch("/api/wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookId }),
+        });
+        if (res.ok) {
+          setIsInWishlist(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update wishlist:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <form
-      action={(formData) => {
-        startTransition(async () => {
-          await toggleWishlistAction(formData);
-        });
-      }}
+    <button
+      type="button"
+      onClick={handleToggle}
+      disabled={checking}
+      className={cn(
+        "fx-button inline-flex items-center justify-center rounded-full border px-5 py-3 font-ui text-xs tracking-[0.13em] transition-all duration-300 gap-2 cursor-pointer",
+        isInWishlist
+          ? "border-ember/50 bg-ember/10 text-ember hover:bg-ember/20"
+          : "border-smoke bg-obsidian text-parchment hover:border-gold hover:text-gold",
+        className
+      )}
+      title={isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
     >
-      <input type="hidden" name="bookId" value={bookId} />
-      <input type="hidden" name="bookSlug" value={bookSlug} />
-      <input type="hidden" name="bookTitle" value={bookTitle} />
-      <input type="hidden" name="bookAuthor" value={bookAuthor} />
-      {bookCoverUrl && <input type="hidden" name="bookCoverUrl" value={bookCoverUrl} />}
-      {price != null && <input type="hidden" name="price" value={String(price)} />}
-
-      <button
-        type="submit"
-        disabled={isPending}
-        aria-label={isSaved ? "Remove from wishlist" : "Save to wishlist"}
-        title={isSaved ? "Remove from wishlist" : "Save to wishlist"}
+      <Heart
         className={cn(
-          "fx-button inline-flex items-center justify-center gap-2 rounded-full border px-5 py-3 font-ui text-xs tracking-[0.14em] transition-all duration-300",
-          isSaved
-            ? "border-ember/60 bg-ember/10 text-ember hover:bg-ember/20"
-            : "border-smoke bg-obsidian text-stone hover:border-gold hover:text-gold",
-          isPending && "opacity-60 cursor-not-allowed",
-          className,
+          "h-4 w-4 transition-transform duration-300",
+          isInWishlist ? "fill-ember text-ember scale-110" : "fill-none"
         )}
-      >
-        <Heart
-          className={cn("h-4 w-4 transition-all", isSaved && "fill-current")}
-        />
-        {isSaved ? "SAVED" : "SAVE"}
-      </button>
-    </form>
+      />
+      <span>{isInWishlist ? "WISHLISTED" : "ADD TO WISHLIST"}</span>
+    </button>
   );
 }

@@ -11,21 +11,22 @@ export interface AuthSession {
   userId: string;
   email: string;
   fullName?: string;
+  phone?: string;
   role: UserRole;
   expiresAt: number;
 }
 
 function getSessionSecret() {
-  const configured = env.ADMIN_SESSION_SECRET;
+  const configured = env.SESSION_SECRET;
   if (configured) {
     return configured;
   }
 
   if (process.env.NODE_ENV === "production") {
-    throw new Error("ADMIN_SESSION_SECRET must be set in production.");
+    throw new Error("SESSION_SECRET must be set in production.");
   }
 
-  return "local-admin-session-secret";
+  return "local-session-secret";
 }
 
 function signValue(value: string) {
@@ -80,12 +81,14 @@ export async function createSession(user: {
   id: string;
   email: string;
   fullName?: string | null;
+  phone?: string | null;
   role: UserRole;
 }) {
   const session: AuthSession = {
     userId: user.id,
     email: user.email,
     fullName: user.fullName ?? undefined,
+    phone: user.phone ?? undefined,
     role: user.role,
     expiresAt: Date.now() + SESSION_TTL_MS,
   };
@@ -105,15 +108,27 @@ export async function clearSession() {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function getSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+declare global {
+  var __mockSession: AuthSession | null | undefined;
+}
 
-  if (!token) {
-    return null;
+export async function getSession() {
+  if (globalThis.__mockSession !== undefined) {
+    return globalThis.__mockSession;
   }
 
-  return decodeSession(token);
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE)?.value;
+
+    if (!token) {
+      return null;
+    }
+
+    return decodeSession(token);
+  } catch {
+    return null;
+  }
 }
 
 export async function requireSession(redirectTo?: string) {

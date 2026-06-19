@@ -31,26 +31,24 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     redirect("/admin");
   }
 
-  const orders = await db.order.findMany({
-    where: {
-      OR: [
-        {
-          userId: session.userId,
-        },
-        {
-          userId: null,
-          customerEmail: session.email,
-        },
-      ],
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 8,
-    include: {
-      items: true,
-    },
-  });
+  // Fetch full user record so we have phone (not stored in session cookie)
+  const [user, orders] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.userId },
+      select: { phone: true },
+    }),
+    db.order.findMany({
+      where: {
+        OR: [
+          { userId: session.userId },
+          { userId: null, customerEmail: session.email },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      include: { items: true },
+    }),
+  ]);
 
   return (
     <div className="grain-overlay mx-auto w-full max-w-7xl px-4 py-14 md:px-8">
@@ -68,10 +66,16 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             {session.email}
           </span>
           <Link
+            href="/account/addresses"
+            className="inline-flex items-center gap-1.5 rounded-full border border-smoke px-3 py-1 font-ui tracking-[0.13em] text-parchment transition hover:border-gold hover:text-gold"
+          >
+            ⊕ Addresses
+          </Link>
+          <Link
             href="/account/wishlist"
             className="inline-flex items-center gap-1.5 rounded-full border border-smoke px-3 py-1 font-ui tracking-[0.13em] text-parchment transition hover:border-gold hover:text-gold"
           >
-            ♡ Wishlist
+            ♥ Wishlist
           </Link>
         </div>
       </section>
@@ -111,6 +115,17 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                 value={session.email}
                 disabled
                 className="w-full rounded-xl border border-smoke bg-obsidian px-3 py-2.5 font-body text-base text-stone"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="font-ui text-xs tracking-[0.14em] text-parchment">PHONE NUMBER</span>
+              <input
+                type="tel"
+                name="phone"
+                defaultValue={user?.phone ?? ""}
+                placeholder="+91 98765 43210"
+                className="w-full rounded-xl border border-smoke bg-void px-3 py-2.5 font-body text-base text-ivory outline-none ring-gold transition focus:ring-1"
               />
             </label>
 
@@ -160,6 +175,15 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             Signed-in orders and legacy guest orders on this email appear here together.
           </p>
 
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/account/orders"
+              className="fx-button inline-flex rounded-full border border-gold bg-gold px-5 py-3 font-ui text-xs tracking-[0.14em] text-void transition hover:bg-gold-dim"
+            >
+              VIEW ALL ORDERS
+            </Link>
+          </div>
+
           {orders.length > 0 ? (
             <div className="mt-6 space-y-4">
               {orders.map((order) => (
@@ -179,7 +203,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                       </div>
                       <p className="mt-2 font-mono text-xs text-stone">{order.id}</p>
                       <p className="mt-1 font-body text-sm text-stone">
-                        {formatDisplayDate(
+                        {order.items.length} book{order.items.length > 1 ? "s" : ""} · {formatDisplayDate(
                           order.paymentCollectedAt?.toISOString() ??
                             order.paidAt?.toISOString() ??
                             order.createdAt.toISOString(),
@@ -187,7 +211,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                         )}
                       </p>
                     </div>
-                    <p className="font-title text-3xl text-ivory">{formatINR(Number(order.totalAmount))}</p>
+                    <div className="text-right">
+                      <p className="font-title text-3xl text-ivory">{formatINR(Number(order.totalAmount))}</p>
+                      <p className="mt-2 font-mono text-xs uppercase tracking-[0.18em] text-smoke">
+                        {order.items.reduce((sum, item) => sum + item.quantity, 0)} total item{order.items.reduce((sum, item) => sum + item.quantity, 0) > 1 ? "s" : ""}
+                      </p>
+                    </div>
                   </div>
                   <div className="mt-4 space-y-2">
                     {order.items.map((item) => (

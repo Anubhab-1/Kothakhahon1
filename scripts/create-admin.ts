@@ -22,6 +22,7 @@ async function main() {
       fullName: fullName || null,
       role: "ADMIN",
       isActive: true,
+      emailVerifiedAt: new Date(),
     },
     create: {
       email,
@@ -29,6 +30,7 @@ async function main() {
       fullName: fullName || null,
       role: "ADMIN",
       isActive: true,
+      emailVerifiedAt: new Date(),
     },
   });
 

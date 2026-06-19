@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -31,12 +31,12 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
           {book.coverImageUrl ? (
             <Image
               src={book.coverImageUrl}
-              alt={book.title}
+              alt={`Cover of ${book.title} by ${book.authorName ?? "Unknown Author"}`}
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               className="object-cover transition duration-500 group-hover:scale-[1.04]"
             />
-            ) : (
+          ) : (
             <DecorativeBookCover
               title={book.title}
               subtitle={book.authorName}
@@ -75,7 +75,10 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
           <div className="ink-divider mt-2" />
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            <p className="rounded-full border border-smoke px-2 py-1 font-mono text-[11px] text-parchment sm:px-2.5 sm:text-xs">
+            <p
+              aria-label={`Price ${formatINR(book.price)}`}
+              className="rounded-full border border-smoke px-2 py-1 font-mono text-[11px] text-parchment sm:px-2.5 sm:text-xs"
+            >
               {formatINR(book.price)}
             </p>
             <AddToCart

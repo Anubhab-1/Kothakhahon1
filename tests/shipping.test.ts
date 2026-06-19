@@ -37,4 +37,16 @@ describe("Shipping Logic", () => {
     assert.strictEqual(quoteOverThreshold.shippingAmount, 0);
     assert.strictEqual(quoteOverThreshold.code, "india_free");
   });
+
+  test("getShippingQuote applies express flat rate regardless of threshold", () => {
+    const quoteUnder = getShippingQuote({ country: "India", subtotalAmount: 500, shippingMethod: "express" });
+    assert.strictEqual(quoteUnder.serviceable, true);
+    assert.strictEqual(quoteUnder.shippingAmount, 150);
+    assert.strictEqual(quoteUnder.code, "india_express");
+
+    const quoteOver = getShippingQuote({ country: "India", subtotalAmount: 1200, shippingMethod: "express" });
+    assert.strictEqual(quoteOver.serviceable, true);
+    assert.strictEqual(quoteOver.shippingAmount, 150);
+    assert.strictEqual(quoteOver.code, "india_express");
+  });
 });

@@ -114,6 +114,11 @@ export default async function AdminOrderDetailPage({
               <p style={{ fontSize:"0.875rem", color:"#94a3b8" }}>Payment state: {getPaymentStatusLabel(order.paymentStatus)}</p>
               <p style={{ fontSize:"0.875rem", color:"#94a3b8" }}>Subtotal: ₹ {order.subtotalAmount.toFixed(2)}</p>
               <p style={{ fontSize:"0.875rem", color:"#94a3b8" }}>Shipping: ₹ {order.shippingAmount.toFixed(2)}</p>
+              {order.discountAmount > 0 ? (
+                <p style={{ fontSize:"0.875rem", color:"#34d399" }}>
+                  Discount{order.couponCode ? ` (${order.couponCode})` : ""}: -₹ {order.discountAmount.toFixed(2)}
+                </p>
+              ) : null}
             </div>
             <p style={{ fontSize:"1.5rem", fontWeight:800, color:"#f0f2ff", fontVariantNumeric:"tabular-nums", borderTop:"1px solid rgba(99,102,241,0.1)", paddingTop:"0.6rem", marginTop:"0.25rem" }}>Total: ₹ {order.totalAmount.toFixed(2)}</p>
             <div style={{ display:"flex", flexDirection:"column", gap:"0.25rem", marginTop:"0.5rem", paddingTop:"0.5rem", borderTop:"1px solid rgba(99,102,241,0.08)" }}>

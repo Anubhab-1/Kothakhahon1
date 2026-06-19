@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { usePublicSession } from "@/components/auth/PublicSessionProvider";
 
 const STORAGE_KEY = "kothakhahon_cart_v1";
 
@@ -94,10 +95,13 @@ function parseStoredItems(value: string | null): CartLineItem[] {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const session = usePublicSession();
   const [items, setItems] = useState<CartLineItem[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [syncedUserId, setSyncedUserId] = useState<string | null>(null);
 
+  // 1. Initial hydration from local storage
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -106,11 +110,49 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setIsHydrated(true);
   }, []);
 
+  // 2. Synchronize with localStorage
   useEffect(() => {
     if (isHydrated) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     }
   }, [items, isHydrated]);
+
+  // 3. Sync and merge guest cart with DB cart on login / session change
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (session?.id) {
+      if (session.id !== syncedUserId) {
+        const mergeCart = async () => {
+          try {
+            const res = await fetch("/api/cart", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                items: items.map((i) => ({ bookId: i.bookId, quantity: i.quantity })),
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.items) {
+                setItems(data.items);
+              }
+            }
+            setSyncedUserId(session.id);
+          } catch (error) {
+            console.error("Cart sync failed:", error);
+          }
+        };
+        void mergeCart();
+      }
+    } else {
+      if (syncedUserId !== null) {
+        setSyncedUserId(null);
+        setItems([]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, isHydrated, syncedUserId]);
 
   const addItem = useCallback((item: AddCartInput, quantity = 1) => {
     const safeQuantity = Math.max(1, Math.floor(quantity || 1));
@@ -125,38 +167,66 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     setItems((current) => {
       const existing = current.find((entry) => entry.bookId === nextItem.bookId);
-      if (!existing) {
-        return [...current, nextItem];
+      const newItems = existing
+        ? current.map((entry) =>
+            entry.bookId === nextItem.bookId
+              ? { ...entry, quantity: entry.quantity + nextItem.quantity }
+              : entry,
+          )
+        : [...current, nextItem];
+
+      if (session?.id) {
+        const targetQty = existing ? existing.quantity + nextItem.quantity : nextItem.quantity;
+        fetch("/api/cart", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookId: nextItem.bookId, quantity: targetQty }),
+        }).catch((err) => console.warn("Failed to add cart item to server:", err));
       }
 
-      return current.map((entry) =>
-        entry.bookId === nextItem.bookId
-          ? { ...entry, quantity: entry.quantity + nextItem.quantity }
-          : entry,
-      );
+      return newItems;
     });
-  }, []);
+  }, [session?.id]);
 
   const removeItem = useCallback((bookId: string) => {
-    setItems((current) => current.filter((entry) => entry.bookId !== bookId));
-  }, []);
+    setItems((current) => {
+      const newItems = current.filter((entry) => entry.bookId !== bookId);
+      if (session?.id) {
+        fetch(`/api/cart?bookId=${bookId}`, { method: "DELETE" })
+          .catch((err) => console.warn("Failed to delete cart item from server:", err));
+      }
+      return newItems;
+    });
+  }, [session?.id]);
 
   const setQuantity = useCallback((bookId: string, quantity: number) => {
     const safeQuantity = Math.max(0, Math.floor(quantity));
     setItems((current) => {
-      if (safeQuantity === 0) {
-        return current.filter((entry) => entry.bookId !== bookId);
+      const newItems = safeQuantity === 0
+        ? current.filter((entry) => entry.bookId !== bookId)
+        : current.map((entry) =>
+            entry.bookId === bookId ? { ...entry, quantity: safeQuantity } : entry,
+          );
+
+      if (session?.id) {
+        fetch("/api/cart", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookId, quantity: safeQuantity }),
+        }).catch((err) => console.warn("Failed to update cart item quantity on server:", err));
       }
 
-      return current.map((entry) =>
-        entry.bookId === bookId ? { ...entry, quantity: safeQuantity } : entry,
-      );
+      return newItems;
     });
-  }, []);
+  }, [session?.id]);
 
   const clearCart = useCallback(() => {
     setItems([]);
-  }, []);
+    if (session?.id) {
+      fetch("/api/cart", { method: "DELETE" })
+        .catch((err) => console.warn("Failed to clear cart on server:", err));
+    }
+  }, [session?.id]);
 
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);

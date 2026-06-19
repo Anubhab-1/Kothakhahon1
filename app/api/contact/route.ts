@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
+import { verifyCaptcha } from "@/lib/captcha";
 import {
   queueContactSubmissionEmails,
   runEmailJobsAfterResponse,
@@ -12,6 +13,7 @@ const contactSchema = z.object({
   email: z.string().email(),
   department: z.string().min(2),
   message: z.string().min(30).max(1800),
+  captchaToken: z.string().optional().nullable(),
 });
 
 function getClientIdentifier(request: Request) {
@@ -24,7 +26,7 @@ function getClientIdentifier(request: Request) {
 
 export async function POST(request: Request) {
   const clientId = getClientIdentifier(request);
-  const rateLimit = checkRateLimit({
+  const rateLimit = await checkRateLimit({
     key: `contact:${clientId}`,
     limit: 6,
     windowMs: 60_000,
@@ -47,6 +49,14 @@ export async function POST(request: Request) {
     payload = contactSchema.parse(await request.json());
   } catch {
     return NextResponse.json({ error: "Invalid contact payload." }, { status: 400 });
+  }
+
+  const isCaptchaValid = await verifyCaptcha(payload.captchaToken);
+  if (!isCaptchaValid) {
+    return NextResponse.json(
+      { error: "CAPTCHA verification failed. Please try again." },
+      { status: 400 }
+    );
   }
 
   const message = await db.contactMessage.create({

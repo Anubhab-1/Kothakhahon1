@@ -77,6 +77,8 @@ async function getPostData(slug: string) {
   };
 }
 
+import { env } from "@/lib/env";
+
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
   const data = await getPostData(slug);
@@ -85,7 +87,79 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound();
   }
 
-  return <BlogPostClient post={data.post} relatedPosts={data.relatedPosts} />;
+  // Resolve absolute cover image URL
+  const coverUrl = data.post.coverImageUrl
+    ? (data.post.coverImageUrl.startsWith("http")
+      ? data.post.coverImageUrl
+      : `${env.SITE_URL}${data.post.coverImageUrl.startsWith("/") ? "" : "/"}${data.post.coverImageUrl}`)
+    : `${env.SITE_URL}/opengraph-image`;
+
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": data.post.title,
+    "description": data.post.excerpt,
+    "image": coverUrl,
+    "datePublished": data.post.publishedAt
+      ? new Date(data.post.publishedAt).toISOString()
+      : undefined,
+    "author": {
+      "@type": "Person",
+      "name": data.post.authorName,
+      "url": data.post.authorSlug ? `${env.SITE_URL}/authors/${data.post.authorSlug}` : undefined,
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Kothakhahon",
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${env.SITE_URL}/favicon.ico`,
+      },
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `${env.SITE_URL}/blog/${data.post.slug}`,
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": env.SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Blog",
+        "item": `${env.SITE_URL}/blog`,
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": data.post.title,
+        "item": `${env.SITE_URL}/blog/${data.post.slug}`,
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <BlogPostClient post={data.post} relatedPosts={data.relatedPosts} />
+    </>
+  );
 }
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
@@ -95,6 +169,19 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   if (!data) {
     notFound();
   }
+
+  // Resolve absolute cover image URL
+  const coverUrl = data.post.coverImageUrl
+    ? (data.post.coverImageUrl.startsWith("http")
+      ? data.post.coverImageUrl
+      : `${env.SITE_URL}${data.post.coverImageUrl.startsWith("/") ? "" : "/"}${data.post.coverImageUrl}`)
+    : `${env.SITE_URL}/opengraph-image`;
+
+  const twitterUrl = data.post.coverImageUrl
+    ? (data.post.coverImageUrl.startsWith("http")
+      ? data.post.coverImageUrl
+      : `${env.SITE_URL}${data.post.coverImageUrl.startsWith("/") ? "" : "/"}${data.post.coverImageUrl}`)
+    : `${env.SITE_URL}/twitter-image`;
 
   return {
     title: data.post.title,
@@ -107,13 +194,13 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       description: data.post.excerpt,
       type: "article",
       url: `/blog/${data.post.slug}`,
-      images: [data.post.coverImageUrl || "/opengraph-image"],
+      images: [coverUrl],
     },
     twitter: {
       card: "summary_large_image",
       title: data.post.title,
       description: data.post.excerpt,
-      images: [data.post.coverImageUrl || "/twitter-image"],
+      images: [twitterUrl],
     },
   };
 }

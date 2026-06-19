@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { calculateCouponDiscount } from "@/lib/coupons";
 
 export async function GET(req: NextRequest) {
-  // Brute-force / enumeration guard: 5 attempts per IP per minute
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? req.headers.get("x-real-ip")
-    ?? "unknown";
-  const rl = checkRateLimit({ key: `coupon:${ip}`, limit: 5, windowMs: 60_000 });
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  const rl = await checkRateLimit({ key: `coupon:${ip}`, limit: 5, windowMs: 60_000 });
+
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many coupon attempts. Please wait before trying again." },
@@ -46,20 +48,24 @@ export async function GET(req: NextRequest) {
   }
 
   if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
-    return NextResponse.json({ error: "This coupon has reached its usage limit." }, { status: 400 });
-  }
-
-  if (coupon.minOrderAmount !== null && subtotal < coupon.minOrderAmount) {
     return NextResponse.json(
-      { error: `Minimum order of ₹${coupon.minOrderAmount} required for this coupon.` },
+      { error: "This coupon has reached its usage limit." },
       { status: 400 },
     );
   }
 
-  const discount =
-    coupon.type === "percent"
-      ? Math.round((subtotal * coupon.value) / 100)
-      : Math.min(coupon.value, subtotal);
+  if (coupon.minOrderAmount !== null && subtotal < coupon.minOrderAmount) {
+    return NextResponse.json(
+      { error: `Minimum order of Rs. ${coupon.minOrderAmount} required for this coupon.` },
+      { status: 400 },
+    );
+  }
+
+  const discount = calculateCouponDiscount({
+    type: coupon.type,
+    value: coupon.value,
+    subtotalAmount: subtotal,
+  });
 
   return NextResponse.json({
     couponId: coupon.id,

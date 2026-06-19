@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import fs from "node:fs";
+import path from "node:path";
 import type {
   ContactMessage,
   ManuscriptSubmission,
@@ -9,6 +11,12 @@ import type {
 import { db } from "@/lib/db";
 import { env, getSiteUrlString } from "@/lib/env";
 import { getPaymentMethodLabel } from "@/lib/orders";
+import { escapeHtml, formatINR } from "@/lib/utils";
+import {
+  renderOrderItemsMarkup,
+  renderTotalsMarkup,
+  renderShippingAddress,
+} from "@/lib/order-render";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 const INTERNET_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
@@ -20,53 +28,24 @@ export class EmailSendError extends Error {
   }
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 function formatParagraphs(value: string) {
   return escapeHtml(value).replace(/\r?\n/g, "<br />");
 }
 
 function normalizeRecipients(value?: string | string[] | null) {
-  const values = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? value.split(",")
-      : [];
-
+  const entries = Array.isArray(value) ? value : value ? value.split(/[,\s]+/) : [];
   return Array.from(
     new Set(
-      values
-        .map((entry) => entry.trim().toLowerCase())
+      entries
+        .map((entry) => entry.trim())
         .filter((entry) => INTERNET_EMAIL_PATTERN.test(entry)),
     ),
   );
 }
 
 function getMailSender() {
-  if (env.RESEND_FROM_EMAIL?.trim()) {
-    return env.RESEND_FROM_EMAIL.trim();
-  }
-
-  if (process.env.NODE_ENV !== "production" && env.RESEND_API_KEY) {
-    return "Kothakhahon <onboarding@resend.dev>";
-  }
-
-  return null;
-}
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(amount);
+  const sender = env.RESEND_FROM_EMAIL?.trim();
+  return sender && INTERNET_EMAIL_PATTERN.test(sender) ? sender : null;
 }
 
 function renderEmailShell({
@@ -150,11 +129,36 @@ export async function sendEmail({
   html: string;
   replyTo?: string | string[];
 }) {
+  const sender = getMailSender();
+  const isSandbox = process.env.NODE_ENV !== "production" && (!resend || !sender);
+
+  if (isSandbox) {
+    const recipients = normalizeRecipients(to);
+    console.log(`[EMAIL SANDBOX] Mock sending email to: ${recipients.join(", ")}`);
+    console.log(`[EMAIL SANDBOX] Subject: ${subject}`);
+
+    try {
+      const logPath = path.join(process.cwd(), "email-sandbox.log");
+      const logEntry = `\n=======================================================\n` +
+        `Timestamp: ${new Date().toISOString()}\n` +
+        `To: ${recipients.join(", ")}\n` +
+        `Subject: ${subject}\n` +
+        `Reply-To: ${replyTo ? (Array.isArray(replyTo) ? replyTo.join(", ") : replyTo) : "N/A"}\n` +
+        `-------------------------------------------------------\n` +
+        `${html}\n` +
+        `=======================================================\n`;
+      fs.appendFileSync(logPath, logEntry, "utf8");
+    } catch (err) {
+      console.error("Failed to write to local email sandbox log:", err);
+    }
+
+    return { sent: true, id: "sandbox-mock-id" } as const;
+  }
+
   if (!resend) {
     throw new EmailSendError("Resend API key is not configured.");
   }
 
-  const sender = getMailSender();
   if (!sender) {
     throw new EmailSendError("Resend sender email is not configured.");
   }
@@ -202,28 +206,6 @@ async function sendAdminEmail({
     html,
     replyTo,
   });
-}
-
-function renderOrderItemsMarkup(items: OrderItem[]) {
-  return items
-    .map(
-      (item) => `
-        <tr>
-          <td style="padding:10px 0;border-top:1px solid #eadfce;font-size:15px;line-height:1.6;color:#1c1713;">
-            <strong>${escapeHtml(item.bookTitle)}</strong><br />
-            <span style="color:#6b5a47;">${escapeHtml(item.bookAuthor)}</span>
-          </td>
-          <td style="padding:10px 0;border-top:1px solid #eadfce;font-size:15px;line-height:1.6;color:#6b5a47;text-align:center;">${item.quantity}</td>
-          <td style="padding:10px 0;border-top:1px solid #eadfce;font-size:15px;line-height:1.6;color:#1c1713;text-align:right;">${escapeHtml(formatCurrency(item.price * item.quantity))}</td>
-        </tr>`,
-    )
-    .join("");
-}
-
-function renderShippingAddress(order: Order) {
-  return formatParagraphs(
-    `${order.customerName}\n${order.addressLine1}${order.addressLine2 ? `\n${order.addressLine2}` : ""}\n${order.city}, ${order.state} ${order.postalCode}\n${order.country}`,
-  );
 }
 
 export async function sendContactSubmissionCustomerEmail(message: ContactMessage) {
@@ -405,7 +387,7 @@ export async function sendCashOnDeliveryOrderCustomerEmail(
         ${renderDefinitionList([
           { label: "Order", value: escapeHtml(orderLabel) },
           { label: "Payment Method", value: escapeHtml(getPaymentMethodLabel(order.paymentMethod)) },
-          { label: "Amount Due", value: escapeHtml(formatCurrency(order.totalAmount)) },
+          { label: "Amount Due", value: escapeHtml(formatINR(order.totalAmount)) },
           { label: "Shipping To", value: renderShippingAddress(order) },
         ])}
         <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px;">
@@ -416,7 +398,10 @@ export async function sendCashOnDeliveryOrderCustomerEmail(
               <th style="padding:0 0 8px;text-align:right;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8f7345;">Line Total</th>
             </tr>
           </thead>
-          <tbody>${itemsMarkup}</tbody>
+          <tbody>
+            ${itemsMarkup}
+            ${renderTotalsMarkup(order)}
+          </tbody>
         </table>
       `,
     }),
@@ -443,7 +428,7 @@ export async function sendCashOnDeliveryOrderAdminEmail(
           { label: "Email", value: escapeHtml(order.customerEmail) },
           { label: "Phone", value: escapeHtml(order.customerPhone) },
           { label: "Payment Method", value: escapeHtml(getPaymentMethodLabel(order.paymentMethod)) },
-          { label: "Amount Due", value: escapeHtml(formatCurrency(order.totalAmount)) },
+          { label: "Amount Due", value: escapeHtml(formatINR(order.totalAmount)) },
           { label: "Shipping To", value: renderShippingAddress(order) },
         ])}
         <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px;">
@@ -454,7 +439,10 @@ export async function sendCashOnDeliveryOrderAdminEmail(
               <th style="padding:0 0 8px;text-align:right;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8f7345;">Line Total</th>
             </tr>
           </thead>
-          <tbody>${itemsMarkup}</tbody>
+          <tbody>
+            ${itemsMarkup}
+            ${renderTotalsMarkup(order)}
+          </tbody>
         </table>
       `,
     }),
@@ -493,7 +481,7 @@ export async function sendPaidOrderCustomerEmail(
         ${renderDefinitionList([
           { label: "Order", value: escapeHtml(orderLabel) },
           { label: "Payment Method", value: escapeHtml(getPaymentMethodLabel(order.paymentMethod)) },
-          { label: "Total", value: escapeHtml(formatCurrency(order.totalAmount)) },
+          { label: "Total", value: escapeHtml(formatINR(order.totalAmount)) },
           { label: "Payment ID", value: escapeHtml(order.razorpayPaymentId ?? "Recorded") },
           { label: "Shipping To", value: renderShippingAddress(order) },
         ])}
@@ -505,7 +493,10 @@ export async function sendPaidOrderCustomerEmail(
               <th style="padding:0 0 8px;text-align:right;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8f7345;">Line Total</th>
             </tr>
           </thead>
-          <tbody>${itemsMarkup}</tbody>
+          <tbody>
+            ${itemsMarkup}
+            ${renderTotalsMarkup(order)}
+          </tbody>
         </table>
       `,
     }),
@@ -532,7 +523,7 @@ export async function sendPaidOrderAdminEmail(
           { label: "Email", value: escapeHtml(order.customerEmail) },
           { label: "Phone", value: escapeHtml(order.customerPhone) },
           { label: "Payment Method", value: escapeHtml(getPaymentMethodLabel(order.paymentMethod)) },
-          { label: "Total", value: escapeHtml(formatCurrency(order.totalAmount)) },
+          { label: "Total", value: escapeHtml(formatINR(order.totalAmount)) },
           { label: "Payment ID", value: escapeHtml(order.razorpayPaymentId ?? "Recorded") },
         ])}
         <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px;">
@@ -543,7 +534,10 @@ export async function sendPaidOrderAdminEmail(
               <th style="padding:0 0 8px;text-align:right;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8f7345;">Line Total</th>
             </tr>
           </thead>
-          <tbody>${itemsMarkup}</tbody>
+          <tbody>
+            ${itemsMarkup}
+            ${renderTotalsMarkup(order)}
+          </tbody>
         </table>
       `,
     }),
@@ -664,6 +658,152 @@ export async function sendOrderDeliveredEmail({
         <div style="text-align:center;margin:20px 0;">
           <a href="${escapeHtml(siteUrl)}/contact" style="display:inline-block;padding:12px 28px;border-radius:999px;background:#d8a84b;color:#1c1713;font-family:Georgia,serif;font-size:13px;font-weight:600;letter-spacing:0.08em;text-decoration:none;text-transform:uppercase;">CONTACT THE DESK</a>
         </div>
+      `,
+    }),
+  });
+}
+
+export async function sendVerificationEmail({
+  to,
+  verificationUrl,
+}: {
+  to: string;
+  verificationUrl: string;
+}) {
+  return sendEmail({
+    to,
+    subject: "Verify your Kothakhahon account",
+    html: renderEmailShell({
+      eyebrow: "Welcome to Kothakhahon",
+      title: "Activate your account",
+      body: `
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#1c1713;">
+          Thank you for creating an account with Kothakhahon. To complete your registration and verify your email address, please click the button below. This link will expire in 24 hours.
+        </p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${escapeHtml(verificationUrl)}"
+            style="display:inline-block;padding:14px 32px;border-radius:999px;background:#d8a84b;color:#1c1713;font-family:Georgia,serif;font-size:14px;font-weight:600;letter-spacing:0.08em;text-decoration:none;text-transform:uppercase;">
+            Verify Email
+          </a>
+        </div>
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#6b5a47;">
+          If you did not request this, you can safely ignore this email.
+        </p>
+      `,
+    }),
+  });
+}
+
+export async function sendWelcomeEmail({
+  to,
+  customerName,
+}: {
+  to: string;
+  customerName: string;
+}) {
+  return sendEmail({
+    to,
+    subject: "Welcome to Kothakhahon Prokashoni",
+    html: renderEmailShell({
+      eyebrow: "Account Activated",
+      title: `Welcome, ${customerName}`,
+      body: `
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#1c1713;">
+          Your email address has been successfully verified! Your account is now active.
+        </p>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#5b4a39;">
+          You can now log in to manage your addresses, view your order history, and track your orders. We are delighted to have you as part of our reading community.
+        </p>
+      `,
+    }),
+  });
+}
+
+export async function sendOrderRefundedEmail({
+  to,
+  customerName,
+  orderLabel,
+  amount,
+}: {
+  to: string;
+  customerName: string;
+  orderLabel: string;
+  amount: number;
+}) {
+  return sendEmail({
+    to,
+    subject: `Order ${orderLabel} has been refunded`,
+    html: renderEmailShell({
+      eyebrow: "Order Refunded",
+      title: `Refund issued for ${orderLabel}`,
+      body: `
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#1c1713;">
+          Hello ${customerName}, we have processed a refund of <strong>${escapeHtml(formatINR(amount))}</strong> for your order <strong>${escapeHtml(orderLabel)}</strong>.
+        </p>
+        <p style="margin:0;font-size:15px;line-height:1.7;color:#5b4a39;">
+          Depending on your payment method or bank, the funds should appear in your account within 5 to 7 business days. If you have any questions, please contact our support desk.
+        </p>
+      `,
+    }),
+  });
+}
+
+export async function sendLowStockAdminEmail({
+  bookTitle,
+  stockQuantity,
+  threshold,
+}: {
+  bookTitle: string;
+  stockQuantity: number;
+  threshold: number;
+}) {
+  return sendAdminEmail({
+    subject: `[Low Stock Alert] ${bookTitle}`,
+    html: renderEmailShell({
+      eyebrow: "Inventory Desk",
+      title: "Low Stock Warning",
+      body: `
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#1c1713;">
+          The inventory level for the following title has dropped below its low-stock threshold.
+        </p>
+        ${renderDefinitionList([
+          { label: "Book Title", value: escapeHtml(bookTitle) },
+          { label: "Current Stock", value: `<strong>${stockQuantity}</strong>` },
+          { label: "Threshold Alert", value: String(threshold) },
+        ])}
+        <p style="margin:0;font-size:14px;color:#6b5a47;">
+          Please review replenishment plans for this book soon.
+        </p>
+      `,
+    }),
+  });
+}
+
+export async function sendFailedPaymentAdminEmail({
+  orderLabel,
+  customerName,
+  totalAmount,
+  reason,
+}: {
+  orderLabel: string;
+  customerName: string;
+  totalAmount: number;
+  reason: string;
+}) {
+  return sendAdminEmail({
+    subject: `[Failed Payment Alert] ${orderLabel}`,
+    html: renderEmailShell({
+      eyebrow: "Fulfillment Desk",
+      title: `Payment failure for ${orderLabel}`,
+      body: `
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#1c1713;">
+          A payment attempt has failed or timed out for order <strong>${escapeHtml(orderLabel)}</strong>.
+        </p>
+        ${renderDefinitionList([
+          { label: "Customer Name", value: escapeHtml(customerName) },
+          { label: "Amount Attempted", value: escapeHtml(formatINR(totalAmount)) },
+          { label: "Reported Reason", value: escapeHtml(reason) },
+        ])}
       `,
     }),
   });

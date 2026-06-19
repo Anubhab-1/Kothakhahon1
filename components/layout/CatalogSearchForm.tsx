@@ -29,8 +29,39 @@ export default function CatalogSearchForm({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [trendingSearches, setTrendingSearches] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("recent_searches");
+    if (saved) {
+      try {
+        setRecentSearches(JSON.parse(saved));
+      } catch (e) {
+        console.error("Error parsing recent searches", e);
+      }
+    }
+  }, []);
+
+  // Fetch trending searches on mount
+  useEffect(() => {
+    async function fetchTrending() {
+      try {
+        const res = await fetch("/api/search?trending=true");
+        if (res.ok) {
+          const data = await res.json();
+          setTrendingSearches(data.queries || []);
+        }
+      } catch (err) {
+        console.error("Failed to load trending searches:", err);
+      }
+    }
+    fetchTrending();
+  }, []);
 
   // Debounced search suggestion loading
   useEffect(() => {
@@ -64,12 +95,39 @@ export default function CatalogSearchForm({
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+        setIsFocused(false);
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const addToRecentSearches = (searchTerm: string) => {
+    const trimmed = searchTerm.trim();
+    if (!trimmed) return;
+    setRecentSearches((prev) => {
+      const filtered = prev.filter((item) => item.toLowerCase() !== trimmed.toLowerCase());
+      const updated = [trimmed, ...filtered].slice(0, 5);
+      localStorage.setItem("recent_searches", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const removeRecentSearch = (searchTerm: string) => {
+    setRecentSearches((prev) => {
+      const updated = prev.filter((item) => item !== searchTerm);
+      localStorage.setItem("recent_searches", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  function handleSelectSuggestion(item: Suggestion) {
+    addToRecentSearches(item.title);
+    router.push(`/books/${item.slug}`);
+    setShowSuggestions(false);
+    setQuery("");
+  }
 
   function handleKeyDown(event: React.KeyboardEvent) {
     if (event.key === "ArrowDown") {
@@ -85,9 +143,7 @@ export default function CatalogSearchForm({
       if (activeIndex >= 0 && activeIndex < suggestions.length) {
         event.preventDefault();
         const selected = suggestions[activeIndex];
-        router.push(`/books/${selected.slug}`);
-        setShowSuggestions(false);
-        setQuery("");
+        handleSelectSuggestion(selected);
       }
     }
   }
@@ -95,6 +151,7 @@ export default function CatalogSearchForm({
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (query.trim()) {
+      addToRecentSearches(query.trim());
       router.push(`/books?q=${encodeURIComponent(query.trim())}`);
       setShowSuggestions(false);
     }
@@ -105,7 +162,8 @@ export default function CatalogSearchForm({
       <form
         onSubmit={handleSubmit}
         className={cn(
-          "flex items-center gap-2 rounded-full border border-smoke bg-void/90 px-3",
+          "flex items-center gap-2 rounded-full border bg-void/90 px-3 transition duration-200",
+          isFocused ? "border-gold shadow-[0_0_12px_rgba(212,175,55,0.2)]" : "border-smoke",
           compact ? "py-2" : "py-2.5"
         )}
         role="search"
@@ -121,7 +179,10 @@ export default function CatalogSearchForm({
             setShowSuggestions(true);
             setActiveIndex(-1);
           }}
-          onFocus={() => setShowSuggestions(true)}
+          onFocus={() => {
+            setShowSuggestions(true);
+            setIsFocused(true);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Search books or authors"
           className={cn(
@@ -143,8 +204,8 @@ export default function CatalogSearchForm({
         </button>
       </form>
 
-      {/* Autocomplete Dropdown list */}
-      {showSuggestions && (query.trim().length >= 2) && (suggestions.length > 0 || loading) && (
+      {/* Autocomplete Dropdown list for query >= 2 */}
+      {showSuggestions && query.trim().length >= 2 && (suggestions.length > 0 || loading) && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[360px] overflow-y-auto rounded-2xl border border-smoke bg-obsidian/95 p-2 shadow-2xl backdrop-blur-md">
           {loading ? (
             <div className="flex items-center justify-center py-6">
@@ -160,11 +221,7 @@ export default function CatalogSearchForm({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    router.push(`/books/${item.slug}`);
-                    setShowSuggestions(false);
-                    setQuery("");
-                  }}
+                  onClick={() => handleSelectSuggestion(item)}
                   onMouseEnter={() => setActiveIndex(index)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition duration-150",
@@ -209,8 +266,83 @@ export default function CatalogSearchForm({
         </div>
       )}
 
-      {/* Empty State suggestions */}
-      {showSuggestions && (query.trim().length >= 2) && !loading && suggestions.length === 0 && (
+      {/* Recent & Trending Dropdown list for query < 2 */}
+      {showSuggestions && query.trim().length < 2 && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[360px] overflow-y-auto rounded-2xl border border-smoke bg-obsidian/95 p-4 shadow-2xl backdrop-blur-md">
+          {recentSearches.length === 0 && trendingSearches.length === 0 ? (
+            <p className="py-2 text-center font-body text-xs text-stone">
+              Type to search...
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {recentSearches.length > 0 && (
+                <div>
+                  <h4 className="mb-2 font-ui text-[9px] tracking-[0.16em] text-gold/70 uppercase">
+                    Recent Searches
+                  </h4>
+                  <ul className="space-y-1">
+                    {recentSearches.map((item) => (
+                      <li
+                        key={item}
+                        className="flex items-center justify-between rounded-lg px-2.5 py-1.5 transition hover:bg-white/5"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuery(item);
+                            addToRecentSearches(item);
+                            router.push(`/books?q=${encodeURIComponent(item)}`);
+                            setShowSuggestions(false);
+                          }}
+                          className="flex-1 text-left font-body text-sm text-parchment hover:text-gold transition-colors"
+                        >
+                          {item}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRecentSearch(item)}
+                          className="p-1 text-stone hover:text-red-400 transition-colors"
+                          aria-label={`Remove ${item} from search history`}
+                        >
+                          <span className="text-base font-semibold leading-none">&times;</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {trendingSearches.length > 0 && (
+                <div>
+                  <h4 className="mb-2 font-ui text-[9px] tracking-[0.16em] text-gold/70 uppercase">
+                    Trending Searches
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {trendingSearches.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          setQuery(item);
+                          addToRecentSearches(item);
+                          router.push(`/books?q=${encodeURIComponent(item)}`);
+                          setShowSuggestions(false);
+                        }}
+                        className="rounded-full border border-gold/30 bg-gold/5 px-3 py-1 font-body text-xs text-parchment hover:border-gold hover:bg-gold/15 transition duration-200"
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty State suggestions for query >= 2 */}
+      {showSuggestions && query.trim().length >= 2 && !loading && suggestions.length === 0 && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-smoke bg-obsidian/95 p-4 text-center shadow-2xl backdrop-blur-md">
           <p className="font-body text-sm text-stone">No matching books or authors found</p>
         </div>
@@ -218,3 +350,4 @@ export default function CatalogSearchForm({
     </div>
   );
 }
+

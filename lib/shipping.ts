@@ -1,10 +1,11 @@
 export const INDIA_STANDARD_SHIPPING_AMOUNT = 70;
+export const INDIA_EXPRESS_SHIPPING_AMOUNT = 150;
 export const INDIA_FREE_SHIPPING_THRESHOLD = 999;
 
 export type ShippingQuote = {
   serviceable: boolean;
   shippingAmount: number;
-  code: "india_standard" | "india_free" | "manual_quote";
+  code: "india_standard" | "india_free" | "india_express" | "manual_quote";
   label: string;
   message: string;
 };
@@ -21,6 +22,7 @@ export function isIndiaShippingCountry(value?: string | null) {
 export function getShippingQuote(options: {
   country?: string | null;
   subtotalAmount: number;
+  shippingMethod?: "standard" | "express" | null;
 }): ShippingQuote {
   if (!isIndiaShippingCountry(options.country)) {
     return {
@@ -30,6 +32,16 @@ export function getShippingQuote(options: {
       label: "Manual quote required",
       message:
         "Direct checkout currently supports India shipping only. Contact the editorial desk for international orders.",
+    };
+  }
+
+  if (options.shippingMethod === "express") {
+    return {
+      serviceable: true,
+      shippingAmount: INDIA_EXPRESS_SHIPPING_AMOUNT,
+      code: "india_express",
+      label: "Express India shipping",
+      message: `Express delivery within 2-3 business days (flat fee of Rs. ${INDIA_EXPRESS_SHIPPING_AMOUNT}).`,
     };
   }
 

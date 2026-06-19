@@ -1,20 +1,18 @@
 import type { Order, OrderItem, PaymentMethod, PaymentStatus } from "@/generated/prisma/client";
 import { formatDisplayDate } from "@/lib/date";
 import { getOrderStatusLabel, getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/orders";
-import { formatINR } from "@/lib/utils";
+import { formatINR, escapeHtml } from "@/lib/utils";
+import {
+  renderInvoiceLineItems,
+  renderInvoiceTotalsHtml,
+  renderInvoiceShippingAddress,
+  calculateShippingGst,
+} from "@/lib/order-render";
+import { jsPDF } from "jspdf";
 
-export type InvoiceOrderRecord = Order & {
+type InvoiceOrderRecord = Order & {
   items: OrderItem[];
 };
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function formatPaymentSummary(method: PaymentMethod, status: PaymentStatus) {
   return `${getPaymentMethodLabel(method)} / ${getPaymentStatusLabel(status)}`;
@@ -25,22 +23,7 @@ export function buildInvoiceNumber(orderId: string, createdAt: Date) {
 }
 
 export function buildInvoiceFilename(invoiceNumber: string) {
-  return `${invoiceNumber.toLowerCase()}.html`;
-}
-
-function renderLineItems(items: OrderItem[]) {
-  return items
-    .map(
-      (item) => `
-        <tr>
-          <td>${escapeHtml(item.bookTitle)}</td>
-          <td>${escapeHtml(item.bookAuthor)}</td>
-          <td>${item.quantity}</td>
-          <td>${escapeHtml(formatINR(item.price))}</td>
-          <td>${escapeHtml(formatINR(item.price * item.quantity))}</td>
-        </tr>`,
-    )
-    .join("");
+  return `${invoiceNumber.toLowerCase()}.pdf`;
 }
 
 export function renderInvoiceHtml(order: InvoiceOrderRecord) {
@@ -207,17 +190,7 @@ export function renderInvoiceHtml(order: InvoiceOrderRecord) {
           <article class="panel" style="margin-top: 18px;">
             <p class="label">Billing And Shipping Address</p>
             <p class="value">
-              ${escapeHtml(order.customerName)}<br />
-              ${escapeHtml(order.addressLine1)}<br />
-              ${
-                order.addressLine2
-                  ? `${escapeHtml(order.addressLine2)}<br />`
-                  : ""
-              }
-              ${escapeHtml(order.city)}, ${escapeHtml(order.state)} ${escapeHtml(
-                order.postalCode,
-              )}<br />
-              ${escapeHtml(order.country)}
+              ${renderInvoiceShippingAddress(order)}
             </p>
           </article>
 
@@ -232,23 +205,12 @@ export function renderInvoiceHtml(order: InvoiceOrderRecord) {
               </tr>
             </thead>
             <tbody>
-              ${renderLineItems(order.items)}
+              ${renderInvoiceLineItems(order.items)}
             </tbody>
           </table>
 
           <div class="totals">
-            <div class="totals-row">
-              <span>Subtotal</span>
-              <span>${escapeHtml(formatINR(order.subtotalAmount))}</span>
-            </div>
-            <div class="totals-row">
-              <span>Shipping</span>
-              <span>${escapeHtml(formatINR(order.shippingAmount))}</span>
-            </div>
-            <div class="totals-row">
-              <strong>Total</strong>
-              <strong>${escapeHtml(formatINR(order.totalAmount))}</strong>
-            </div>
+            ${renderInvoiceTotalsHtml(order)}
           </div>
 
           <div class="footer">
@@ -260,4 +222,198 @@ export function renderInvoiceHtml(order: InvoiceOrderRecord) {
     </main>
   </body>
 </html>`;
+}
+
+export function generateInvoicePdf(order: InvoiceOrderRecord): Buffer {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
+  });
+
+  const invoiceNumber = order.invoiceNumber ?? buildInvoiceNumber(order.id, order.createdAt);
+  const invoiceIssuedAt = order.invoiceIssuedAt ?? order.createdAt;
+
+  // Title / Brand Header
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(28, 23, 19); // void/dark
+  doc.text("Kothakhahon Prokashoni", 20, 20);
+
+  doc.setFontSize(14);
+  doc.setTextColor(143, 115, 69); // gold
+  doc.text("ORDER INVOICE", 20, 28);
+
+  // Line separator
+  doc.setDrawColor(220, 199, 162); // gold border
+  doc.line(20, 32, 190, 32);
+
+  // Left column - Invoice Info
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(107, 90, 71); // stone
+  doc.text("INVOICE NUMBER:", 20, 42);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(28, 23, 19);
+  doc.text(invoiceNumber, 20, 47);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(107, 90, 71);
+  doc.text("ISSUED ON:", 20, 55);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(28, 23, 19);
+  doc.text(formatDisplayDate(invoiceIssuedAt.toISOString(), "Unknown"), 20, 60);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(107, 90, 71);
+  doc.text("ORDER REFERENCE:", 20, 68);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(28, 23, 19);
+  doc.text(order.id, 20, 73);
+
+  // Right column - Customer Info
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(107, 90, 71);
+  doc.text("CUSTOMER:", 120, 42);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(28, 23, 19);
+  doc.text(order.customerName, 120, 47);
+  doc.setFont("helvetica", "normal");
+  doc.text(order.customerEmail, 120, 52);
+  doc.text(order.customerPhone, 120, 57);
+
+  doc.setTextColor(107, 90, 71);
+  doc.text("PAYMENT STATUS:", 120, 65);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(28, 23, 19);
+  doc.text(`${getPaymentMethodLabel(order.paymentMethod)} - ${getPaymentStatusLabel(order.paymentStatus)}`, 120, 70);
+
+  // Shipping details
+  doc.setDrawColor(234, 223, 206);
+  doc.line(20, 78, 190, 78);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(107, 90, 71);
+  doc.text("SHIPPING ADDRESS:", 20, 85);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(28, 23, 19);
+  doc.text(order.customerName, 20, 90);
+  doc.setFont("helvetica", "normal");
+  doc.text(order.addressLine1, 20, 95);
+  let yOffset = 100;
+  if (order.addressLine2) {
+    doc.text(order.addressLine2, 20, yOffset);
+    yOffset += 5;
+  }
+  doc.text(`${order.city}, ${order.state} - ${order.postalCode}`, 20, yOffset);
+  doc.text(order.country, 20, yOffset + 5);
+
+  yOffset += 15;
+
+  // Table header
+  doc.setFillColor(28, 23, 19); // void header background
+  doc.rect(20, yOffset, 170, 8, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(245, 239, 229);
+  doc.text("TITLE", 23, yOffset + 5.5);
+  doc.text("AUTHOR", 85, yOffset + 5.5);
+  doc.text("QTY", 130, yOffset + 5.5);
+  doc.text("PRICE", 145, yOffset + 5.5);
+  doc.text("TOTAL", 170, yOffset + 5.5);
+
+  yOffset += 12;
+
+  // Table items
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(28, 23, 19);
+
+  for (const item of order.items) {
+    const title = item.bookTitle.length > 32 ? item.bookTitle.slice(0, 30) + "..." : item.bookTitle;
+    const author = item.bookAuthor.length > 20 ? item.bookAuthor.slice(0, 18) + "..." : item.bookAuthor;
+
+    doc.text(title, 23, yOffset);
+    doc.text(author, 85, yOffset);
+    doc.text(String(item.quantity), 132, yOffset);
+    doc.text(formatINR(item.price), 145, yOffset);
+    doc.text(formatINR(item.price * item.quantity), 170, yOffset);
+
+    // Draw bottom border under item row
+    doc.setDrawColor(234, 223, 206);
+    doc.line(20, yOffset + 3, 190, yOffset + 3);
+
+    yOffset += 8;
+  }
+
+  yOffset += 4;
+
+  // Totals calculations
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(107, 90, 71);
+
+  doc.text("Subtotal:", 135, yOffset);
+  doc.setTextColor(28, 23, 19);
+  doc.text(formatINR(order.subtotalAmount), 170, yOffset);
+
+  yOffset += 6;
+  doc.setTextColor(107, 90, 71);
+  doc.text(`Shipping (${order.shippingMethod} estimate):`, 115, yOffset);
+  doc.setTextColor(28, 23, 19);
+  doc.text(formatINR(order.shippingAmount), 170, yOffset);
+
+  const gst = calculateShippingGst(order);
+  if (order.shippingAmount > 0) {
+    if (gst.cgst > 0) {
+      yOffset += 6;
+      doc.setTextColor(107, 90, 71);
+      doc.text("CGST @ 9% (on shipping):", 115, yOffset);
+      doc.setTextColor(28, 23, 19);
+      doc.text(formatINR(gst.cgst), 170, yOffset);
+
+      yOffset += 6;
+      doc.setTextColor(107, 90, 71);
+      doc.text("SGST @ 9% (on shipping):", 115, yOffset);
+      doc.setTextColor(28, 23, 19);
+      doc.text(formatINR(gst.sgst), 170, yOffset);
+    } else {
+      yOffset += 6;
+      doc.setTextColor(107, 90, 71);
+      doc.text("IGST @ 18% (on shipping):", 115, yOffset);
+      doc.setTextColor(28, 23, 19);
+      doc.text(formatINR(gst.igst), 170, yOffset);
+    }
+
+    yOffset += 6;
+    doc.setTextColor(107, 90, 71);
+    doc.text("Books GST (Exempt @ 0%):", 115, yOffset);
+    doc.setTextColor(28, 23, 19);
+    doc.text("Rs. 0.00", 170, yOffset);
+  }
+
+  if (order.discountAmount > 0) {
+    yOffset += 6;
+    doc.setTextColor(107, 90, 71);
+    doc.text(`Discount (${order.couponCode ?? "Coupon"}):`, 120, yOffset);
+    doc.setTextColor(28, 23, 19);
+    doc.text(`-${formatINR(order.discountAmount)}`, 170, yOffset);
+  }
+
+  yOffset += 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(28, 23, 19);
+  doc.text("Total:", 135, yOffset);
+  doc.text(formatINR(order.totalAmount), 170, yOffset);
+
+  // Footer note
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(107, 90, 71);
+  doc.text("Thank you for your order. For support, contact the Kothakhahon editorial desk.", 20, 270);
+
+  const arrayBuffer = doc.output("arraybuffer");
+  return Buffer.from(arrayBuffer);
 }

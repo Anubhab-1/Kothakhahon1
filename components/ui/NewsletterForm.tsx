@@ -31,7 +31,7 @@ export default function NewsletterForm({ className }: NewsletterFormProps) {
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-title text-base text-ivory">You're on the list!</p>
+              <p className="font-title text-base text-ivory">You&apos;re on the list!</p>
               <p className="font-body text-xs text-parchment/70 mt-0.5">
                 Thank you for subscribing. We will send you updates and literary updates.
               </p>

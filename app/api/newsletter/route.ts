@@ -21,7 +21,7 @@ function getClientIdentifier(request: Request) {
 
 export async function POST(request: Request) {
   const clientId = getClientIdentifier(request);
-  const rateLimit = checkRateLimit({
+  const rateLimit = await checkRateLimit({
     key: `newsletter:${clientId}`,
     limit: 10,
     windowMs: 60_000,

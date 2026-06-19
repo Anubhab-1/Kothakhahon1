@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import InfoPageShell from "@/components/site/InfoPageShell";
 
-export const metadata = {
-  title: "Terms & Conditions",
+export const metadata: Metadata = {
+  title: "Terms & Conditions | Kothakhahon",
+  description: "Read the terms and conditions governing the purchase of books, digital goods, and site usage on Kothakhahon.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 export default function TermsPage() {

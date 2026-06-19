@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { EmailJobStatus, EmailJobType } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import {
   sendCashOnDeliveryOrderAdminEmail,
   sendCashOnDeliveryOrderCustomerEmail,
@@ -13,6 +14,13 @@ import {
   sendNewsletterSubscriptionCustomerEmail,
   sendPaidOrderAdminEmail,
   sendPaidOrderCustomerEmail,
+  sendVerificationEmail,
+  sendWelcomeEmail,
+  sendOrderShippedEmail,
+  sendOrderDeliveredEmail,
+  sendOrderRefundedEmail,
+  sendLowStockAdminEmail,
+  sendFailedPaymentAdminEmail,
 } from "@/lib/email";
 import { z } from "zod";
 
@@ -34,6 +42,38 @@ const newsletterPayloadSchema = z.object({
 
 const orderPayloadSchema = z.object({
   orderId: z.string().min(1),
+});
+
+const verificationPayloadSchema = z.object({
+  email: z.string().email(),
+  verificationUrl: z.string().url(),
+});
+
+const welcomePayloadSchema = z.object({
+  email: z.string().email(),
+  customerName: z.string().min(1),
+});
+
+const orderShippedPayloadSchema = z.object({
+  orderId: z.string().min(1),
+});
+
+const orderDeliveredPayloadSchema = z.object({
+  orderId: z.string().min(1),
+  siteUrl: z.string().url(),
+});
+
+const orderRefundedPayloadSchema = z.object({
+  orderId: z.string().min(1),
+});
+
+const lowStockPayloadSchema = z.object({
+  bookId: z.string().min(1),
+});
+
+const failedPaymentPayloadSchema = z.object({
+  orderId: z.string().min(1),
+  reason: z.string(),
 });
 
 class EmailJobDataError extends Error {
@@ -84,15 +124,19 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown email job failure.";
 }
 
-async function createEmailJob({
-  type,
-  payload,
-  dedupeKey,
-  runAt,
-  maxAttempts = 5,
-}: CreateEmailJobInput) {
+async function createEmailJob(
+  {
+    type,
+    payload,
+    dedupeKey,
+    runAt,
+    maxAttempts = 5,
+  }: CreateEmailJobInput,
+  tx?: Prisma.TransactionClient
+) {
+  const client = tx || db;
   try {
-    return await db.emailJob.create({
+    return await client.emailJob.create({
       data: {
         type,
         dedupeKey,
@@ -107,7 +151,7 @@ async function createEmailJob({
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return db.emailJob.findUnique({
+      return client.emailJob.findUnique({
         where: {
           dedupeKey,
         },
@@ -118,8 +162,8 @@ async function createEmailJob({
   }
 }
 
-async function createEmailJobs(inputs: CreateEmailJobInput[]) {
-  return Promise.all(inputs.map((input) => createEmailJob(input)));
+async function createEmailJobs(inputs: CreateEmailJobInput[], tx?: Prisma.TransactionClient) {
+  return Promise.all(inputs.map((input) => createEmailJob(input, tx)));
 }
 
 async function claimEmailJobs({
@@ -370,6 +414,132 @@ async function processEmailJob(job: ClaimedEmailJobRow) {
       await sendPaidOrderAdminEmail(order);
       return;
     }
+
+    case EmailJobType.verification_email: {
+      const payload = parsePayload(
+        verificationPayloadSchema,
+        job.payload,
+        "verification email",
+      );
+      await sendVerificationEmail({
+        to: payload.email,
+        verificationUrl: payload.verificationUrl,
+      });
+      return;
+    }
+
+    case EmailJobType.welcome_email: {
+      const payload = parsePayload(
+        welcomePayloadSchema,
+        job.payload,
+        "welcome email",
+      );
+      await sendWelcomeEmail({
+        to: payload.email,
+        customerName: payload.customerName,
+      });
+      return;
+    }
+
+    case EmailJobType.order_shipped: {
+      const payload = parsePayload(
+        orderShippedPayloadSchema,
+        job.payload,
+        "order shipped",
+      );
+      const order = await getOrderOrThrow(payload.orderId);
+      const orderLabel = `#${order.id.slice(-8).toUpperCase()}`;
+      
+      const getTrackingUrl = (carrierName?: string | null, trackingNo?: string | null) => {
+        if (!carrierName || !trackingNo) return null;
+        const c = carrierName.toLowerCase().trim();
+        if (c === "delhivery") return `https://www.delhivery.com/track/package/${trackingNo.trim()}`;
+        if (c === "dhl") return `https://www.dhl.com/in-en/home/tracking/tracking-express.html?submit=1&tracking-id=${trackingNo.trim()}`;
+        if (c === "fedex") return `https://www.fedex.com/apps/fedextrack/?tracknumbers=${trackingNo.trim()}`;
+        return null;
+      };
+
+      await sendOrderShippedEmail({
+        to: order.customerEmail,
+        customerName: order.customerName,
+        orderLabel,
+        trackingNumber: order.trackingNumber,
+        carrier: order.carrier,
+        trackingUrl: getTrackingUrl(order.carrier, order.trackingNumber),
+      });
+      return;
+    }
+
+    case EmailJobType.order_delivered: {
+      const payload = parsePayload(
+        orderDeliveredPayloadSchema,
+        job.payload,
+        "order delivered",
+      );
+      const order = await getOrderOrThrow(payload.orderId);
+      const orderLabel = `#${order.id.slice(-8).toUpperCase()}`;
+      await sendOrderDeliveredEmail({
+        to: order.customerEmail,
+        customerName: order.customerName,
+        orderLabel,
+        siteUrl: payload.siteUrl,
+      });
+      return;
+    }
+
+    case EmailJobType.order_refunded: {
+      const payload = parsePayload(
+        orderRefundedPayloadSchema,
+        job.payload,
+        "order refunded",
+      );
+      const order = await getOrderOrThrow(payload.orderId);
+      const orderLabel = `#${order.id.slice(-8).toUpperCase()}`;
+      await sendOrderRefundedEmail({
+        to: order.customerEmail,
+        customerName: order.customerName,
+        orderLabel,
+        amount: order.totalAmount,
+      });
+      return;
+    }
+
+    case EmailJobType.low_stock_admin: {
+      const payload = parsePayload(
+        lowStockPayloadSchema,
+        job.payload,
+        "low stock admin",
+      );
+      const book = await db.book.findUnique({
+        where: { id: payload.bookId },
+      });
+      if (!book) {
+        throw new EmailJobDataError(`Book ${payload.bookId} no longer exists.`);
+      }
+      await sendLowStockAdminEmail({
+        bookTitle: book.title,
+        stockQuantity: book.stockQuantity,
+        threshold: book.lowStockThreshold,
+      });
+      return;
+    }
+
+    case EmailJobType.failed_payment_admin: {
+      const payload = parsePayload(
+        failedPaymentPayloadSchema,
+        job.payload,
+        "failed payment admin",
+      );
+      const order = await getOrderOrThrow(payload.orderId);
+      const orderLabel = `#${order.id.slice(-8).toUpperCase()}`;
+      await sendFailedPaymentAdminEmail({
+        orderLabel,
+        customerName: order.customerName,
+        totalAmount: order.totalAmount,
+        reason: payload.reason,
+      });
+      return;
+    }
   }
 }
 
@@ -454,6 +624,62 @@ export async function queuePaidOrderEmails(orderId: string) {
   ]);
 }
 
+export async function queueVerificationEmail(email: string, verificationUrl: string) {
+  return createEmailJob({
+    type: EmailJobType.verification_email,
+    payload: { email, verificationUrl },
+    dedupeKey: `verification:${email}:${Buffer.from(verificationUrl).toString("base64url").slice(0, 32)}`,
+  });
+}
+
+export async function queueWelcomeEmail(email: string, customerName: string) {
+  return createEmailJob({
+    type: EmailJobType.welcome_email,
+    payload: { email, customerName },
+    dedupeKey: `welcome:${email}`,
+  });
+}
+
+export async function queueOrderShippedEmail(orderId: string) {
+  return createEmailJob({
+    type: EmailJobType.order_shipped,
+    payload: { orderId },
+    dedupeKey: `order-shipped:${orderId}`,
+  });
+}
+
+export async function queueOrderDeliveredEmail(orderId: string, siteUrl: string) {
+  return createEmailJob({
+    type: EmailJobType.order_delivered,
+    payload: { orderId, siteUrl },
+    dedupeKey: `order-delivered:${orderId}`,
+  });
+}
+
+export async function queueOrderRefundedEmail(orderId: string) {
+  return createEmailJob({
+    type: EmailJobType.order_refunded,
+    payload: { orderId },
+    dedupeKey: `order-refunded:${orderId}`,
+  });
+}
+
+export async function queueLowStockAdminEmail(bookId: string, tx?: Prisma.TransactionClient) {
+  return createEmailJob({
+    type: EmailJobType.low_stock_admin,
+    payload: { bookId },
+    dedupeKey: `low-stock:${bookId}:${new Date().toDateString()}`,
+  }, tx);
+}
+
+export async function queueFailedPaymentAdminEmail(orderId: string, reason: string) {
+  return createEmailJob({
+    type: EmailJobType.failed_payment_admin,
+    payload: { orderId, reason },
+    dedupeKey: `failed-payment:${orderId}`,
+  });
+}
+
 export async function processPendingEmailJobs({
   batchSize = DEFAULT_BATCH_SIZE,
   maxBatches = DEFAULT_MAX_BATCHES,
@@ -480,8 +706,10 @@ export async function processPendingEmailJobs({
         await markEmailJobCompleted(job.id);
         summary.completedCount += 1;
       } catch (error) {
-        console.error(
-          `[email-job] ${job.type} failed on attempt ${job.attempts}: ${getErrorMessage(error)}`,
+        logger.error(
+          `[email-job] ${job.type} failed on attempt ${job.attempts}`,
+          error,
+          { jobId: job.id, type: job.type, attempt: job.attempts }
         );
 
         if (error instanceof EmailJobDataError || job.attempts >= job.maxAttempts) {
@@ -509,10 +737,10 @@ export function runEmailJobsAfterResponse(options?: ProcessEmailJobsOptions) {
       try {
         await processPendingEmailJobs(options);
       } catch (error) {
-        console.error(`[email-job] background processing failed: ${getErrorMessage(error)}`);
+        logger.error("[email-job] background processing failed", error);
       }
     });
   } catch (error) {
-    console.error(`[email-job] could not schedule after-response processing: ${getErrorMessage(error)}`);
+    logger.error("[email-job] could not schedule after-response processing", error);
   }
 }
