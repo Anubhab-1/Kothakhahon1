@@ -249,7 +249,7 @@ export async function bootstrapSeedContent(options?: { force?: boolean }) {
           postalAddress: seedSiteSettings.support?.postalAddress,
         },
       });
-  });
+  }, { timeout: 30000 });
 
   return {
     imported: true,
