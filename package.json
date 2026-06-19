@@ -17,6 +17,7 @@
     "db:local:stop": "node scripts/postgres-dev.mjs stop",
     "content:bootstrap": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/bootstrap-content.ts",
     "admin:create": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-admin.ts",
+    "db:enable-rls": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/enable-rls.ts",
     "test": "node --import tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
