@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
-import { Search, SlidersHorizontal, ChevronDown, LayoutGrid, List } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { Search, SlidersHorizontal, LayoutGrid, List, X } from "lucide-react";
+import { AnimatePresence, motion as Motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import type { CatalogBook } from "@/lib/types";
 import CatalogBookCard from "@/components/books/CatalogBookCard";
@@ -11,7 +12,7 @@ import Link from "next/link";
 import AddToCart from "@/components/ui/AddToCart";
 import DecorativeBookCover from "@/components/ui/DecorativeBookCover";
 import { getStockStatusLabel, isBookAvailableForSale } from "@/lib/inventory";
-import { formatINR } from "@/lib/utils";
+import { formatINR, cn } from "@/lib/utils";
 
 interface BooksCatalogClientProps {
   books: CatalogBook[];
@@ -22,6 +23,9 @@ interface BooksCatalogStatefulProps extends BooksCatalogClientProps {
   initialGenre: string;
   initialSort: SortOption;
   initialPriceFilter: PriceFilter;
+  initialAuthor: string;
+  initialLanguage: string;
+  initialInStock: boolean;
 }
 
 type SortOption = "newest" | "oldest" | "price-low" | "price-high" | "title-az" | "best-selling" | "highest-rated";
@@ -132,28 +136,50 @@ function BooksCatalogStateful({
   initialGenre,
   initialSort,
   initialPriceFilter,
+  initialAuthor,
+  initialLanguage,
+  initialInStock,
 }: BooksCatalogStatefulProps) {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [selectedGenre, setSelectedGenre] = useState(initialGenre);
-  const [selectedAuthor, setSelectedAuthor] = useState("all");
-  const [selectedLanguage, setSelectedLanguage] = useState("all");
-  const [inStockOnly, setInStockOnly] = useState(false);
+  const [selectedAuthor, setSelectedAuthor] = useState(initialAuthor);
+  const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage);
+  const [inStockOnly, setInStockOnly] = useState(initialInStock);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState<SortOption>(initialSort);
   const [priceFilter, setPriceFilter] = useState<PriceFilter>(initialPriceFilter);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isSortOpen, setIsSortOpen] = useState(false);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Sync state back to URL query parameters
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
-        setIsSortOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) params.set("q", searchTerm.trim());
+    if (selectedGenre !== "all") params.set("genre", selectedGenre);
+    if (selectedAuthor !== "all") params.set("author", selectedAuthor);
+    if (selectedLanguage !== "all") params.set("language", selectedLanguage);
+    if (inStockOnly) params.set("inStock", "true");
+    if (priceFilter !== "all") params.set("price", priceFilter);
+    if (sortOption !== "newest") params.set("sort", sortOption);
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+
+    window.history.replaceState(null, "", newUrl);
+  }, [searchTerm, selectedGenre, selectedAuthor, selectedLanguage, inStockOnly, priceFilter, sortOption]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedGenre !== "all") count++;
+    if (selectedAuthor !== "all") count++;
+    if (selectedLanguage !== "all") count++;
+    if (inStockOnly) count++;
+    if (priceFilter !== "all") count++;
+    if (sortOption !== "newest") count++;
+    return count;
+  }, [selectedGenre, selectedAuthor, selectedLanguage, inStockOnly, priceFilter, sortOption]);
 
   const genres = useMemo(() => {
     const genreSet = new Set<string>();
@@ -169,6 +195,57 @@ function BooksCatalogStateful({
       if (book.authorName) authorSet.add(book.authorName);
     });
     return Array.from(authorSet).sort((a, b) => a.localeCompare(b));
+  }, [books]);
+
+  const genreCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    books.forEach((book) => {
+      book.genreNames.forEach((genre) => {
+        counts[genre] = (counts[genre] ?? 0) + 1;
+      });
+    });
+    return counts;
+  }, [books]);
+
+  const authorCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    books.forEach((book) => {
+      if (book.authorName) {
+        counts[book.authorName] = (counts[book.authorName] ?? 0) + 1;
+      }
+    });
+    return counts;
+  }, [books]);
+
+  const languageCounts = useMemo(() => {
+    const counts: Record<string, number> = { Bengali: 0, English: 0 };
+    books.forEach((book) => {
+      if (book.language) {
+        const lang = book.language.toLowerCase() === "english" ? "English" : "Bengali";
+        counts[lang] = (counts[lang] ?? 0) + 1;
+      }
+    });
+    return counts;
+  }, [books]);
+
+  const priceCounts = useMemo(() => {
+    const counts: Record<PriceFilter, number> = { all: books.length, "under-400": 0, "400-600": 0, "above-600": 0 };
+    books.forEach((book) => {
+      if (typeof book.price === "number") {
+        if (book.price < 400) {
+          counts["under-400"]++;
+        } else if (book.price <= 600) {
+          counts["400-600"]++;
+        } else {
+          counts["above-600"]++;
+        }
+      }
+    });
+    return counts;
+  }, [books]);
+
+  const inStockCount = useMemo(() => {
+    return books.filter((book) => book.stockStatus !== "out_of_stock").length;
   }, [books]);
 
   const filteredBooks = useMemo(() => {
@@ -273,12 +350,12 @@ function BooksCatalogStateful({
         </p>
       </div>
 
-      <section className="border-b border-smoke bg-transparent pb-8 pt-2">
-        <div className="space-y-6">
-          {/* Top Row: Search & Sort */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <section className="border-b border-smoke bg-transparent pb-6 pt-2">
+        <div className="space-y-4">
+          {/* Top Row: Search & Toggle Filters Button */}
+          <div className="flex items-center gap-3">
             {/* Minimal Search Bar */}
-            <div className="relative flex-1 max-w-md group">
+            <div className="relative flex-1 group">
               <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-stone/80 group-focus-within:text-gold transition-colors duration-300" />
               <input
                 type="text"
@@ -288,8 +365,8 @@ function BooksCatalogStateful({
                   setCurrentPage(1);
                 }}
                 aria-label="Search books by title, author, or genre"
-                placeholder="Search title, author, or genre..."
-                className="w-full border-b border-smoke/70 bg-transparent pl-7 pr-8 py-2 font-body text-base text-ivory outline-none transition-all duration-300 focus:border-gold placeholder:text-stone/60"
+                placeholder="Search catalog..."
+                className="w-full border-b border-smoke/70 bg-transparent pl-7 pr-8 py-2 font-body text-sm sm:text-base text-ivory outline-none transition-all duration-300 focus:border-gold placeholder:text-stone/60"
               />
               {searchTerm && (
                 <button
@@ -306,185 +383,31 @@ function BooksCatalogStateful({
               )}
             </div>
 
-            {/* Sleek Custom Sort Dropdown */}
-            <div className="flex items-center gap-3 self-start md:self-auto" ref={sortDropdownRef}>
-              <span className="font-ui text-[10px] tracking-[0.18em] text-stone">SORT</span>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsSortOpen(!isSortOpen)}
-                  aria-haspopup="listbox"
-                  aria-expanded={isSortOpen}
-                  className="flex items-center gap-4 px-3 py-1.5 border border-smoke/75 rounded-md font-ui text-[10px] sm:text-xs tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold transition-all duration-200 cursor-pointer min-w-[165px] justify-between uppercase"
-                >
-                  <span>{formatSortLabel(sortOption)}</span>
-                  <ChevronDown className={`h-3.5 w-3.5 text-stone/80 transition-transform duration-300 ${isSortOpen ? 'rotate-180 text-gold' : ''}`} />
-                </button>
-
-                {isSortOpen && (
-                  <div className="absolute right-0 mt-1.5 w-48 bg-void/98 border border-smoke/80 rounded-md shadow-2xl backdrop-blur-md z-30 overflow-hidden py-1 reveal-up">
-                    {(["newest", "oldest", "price-low", "price-high", "title-az", "best-selling", "highest-rated"] as SortOption[]).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => {
-                          setSortOption(option);
-                          setIsSortOpen(false);
-                          setCurrentPage(1);
-                        }}
-                        className={`w-full text-left px-4 py-2 font-ui text-[10px] sm:text-xs tracking-[0.12em] uppercase transition-colors duration-150 cursor-pointer ${
-                          sortOption === option
-                            ? "bg-gold/8 text-gold font-medium"
-                            : "text-stone hover:bg-obsidian hover:text-gold"
-                        }`}
-                      >
-                        {formatSortLabel(option)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Toggle Filters Button */}
+            <button
+              type="button"
+              onClick={() => setIsFiltersOpen(true)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 border rounded-md font-ui text-[10px] sm:text-xs tracking-[0.14em] uppercase transition duration-200 cursor-pointer shrink-0",
+                activeFiltersCount > 0
+                  ? "border-gold bg-gold/8 text-gold"
+                  : "border-smoke bg-obsidian/60 text-parchment hover:border-gold/50 hover:text-gold"
+              )}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Filters</span>
+              {activeFiltersCount > 0 && (
+                <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gold text-void font-sans text-[9px] font-bold">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
           </div>
 
-          {/* Bottom Row: Filter lists */}
-          <div className="space-y-4">
-            {/* Genre Filter Tabs Wrapper with Fade Gradients */}
-            <div className="relative -mx-4 md:-mx-8">
-              {/* Left fade indicator */}
-              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-void via-void/40 to-transparent z-10" />
-              {/* Right fade indicator */}
-              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-void via-void/40 to-transparent z-10" />
-
-              <div className="flex items-center gap-4 overflow-x-auto px-6 md:px-10 pb-2 scrollbar-none">
-                <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-gold/75 mr-1" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedGenre("all");
-                    setCurrentPage(1);
-                  }}
-                  className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] sm:text-xs tracking-[0.16em] uppercase transition duration-200 ${
-                    selectedGenre === "all"
-                      ? "border-gold text-gold font-semibold"
-                      : "border-transparent text-stone hover:text-gold"
-                  }`}
-                >
-                  ALL
-                </button>
-
-                {genres.map((genre) => (
-                  <button
-                    key={genre}
-                    type="button"
-                    onClick={() => {
-                      setSelectedGenre(genre);
-                      setCurrentPage(1);
-                    }}
-                    className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] sm:text-xs tracking-[0.16em] uppercase transition duration-200 ${
-                      selectedGenre === genre
-                        ? "border-gold text-gold font-semibold"
-                        : "border-transparent text-stone hover:text-gold"
-                    }`}
-                  >
-                    {genre}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Price Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-smoke/35">
-              <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-2">PRICE</span>
-              {[
-                { value: "all", label: "All Prices" },
-                { value: "under-400", label: "Under ₹400" },
-                { value: "400-600", label: "₹400 - ₹600" },
-                { value: "above-600", label: "Above ₹600" },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    setPriceFilter(option.value as PriceFilter);
-                    setCurrentPage(1);
-                  }}
-                  className={`rounded-full border px-3 py-1 font-ui text-[10px] sm:text-xs tracking-[0.14em] transition ${
-                    priceFilter === option.value
-                      ? "border-gold/60 bg-gold/8 text-gold font-medium"
-                      : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
-                  }`}
-                >
-                  {option.label.toUpperCase()}
-                </button>
-              ))}
-            </div>
-
-            {/* Author, Language, Availability Filters */}
-            <div className="flex flex-wrap items-center gap-y-3 gap-x-4 md:gap-x-6 pt-3 border-t border-smoke/35">
-              <div className="flex items-center gap-2">
-                <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">AUTHOR</span>
-                <select
-                  value={selectedAuthor}
-                  onChange={(e) => {
-                    setSelectedAuthor(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="bg-obsidian border border-smoke/75 rounded px-2.5 py-1.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
-                >
-                  <option value="all">ALL AUTHORS</option>
-                  {authors.map((authorName) => (
-                    <option key={authorName} value={authorName}>
-                      {authorName.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">LANGUAGE</span>
-                {["all", "Bengali", "English"].map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => {
-                      setSelectedLanguage(lang);
-                      setCurrentPage(1);
-                    }}
-                    className={`rounded-full border px-3 py-1 font-ui text-[10px] sm:text-xs tracking-[0.14em] uppercase transition ${
-                      selectedLanguage === lang
-                        ? "border-gold/60 bg-gold/8 text-gold font-medium"
-                        : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
-                    }`}
-                  >
-                    {lang === "all" ? "ALL LANGUAGES" : lang}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">AVAILABILITY</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInStockOnly(!inStockOnly);
-                    setCurrentPage(1);
-                  }}
-                  className={`rounded-full border px-3 py-1 font-ui text-[10px] sm:text-xs tracking-[0.14em] uppercase transition ${
-                    inStockOnly
-                      ? "border-gold/60 bg-gold/8 text-gold font-medium"
-                      : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
-                  }`}
-                >
-                  IN STOCK ONLY
-                </button>
-              </div>
-            </div>
-          </div>
-
+          {/* Active filter pills */}
           {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-smoke/70 pt-4">
-              <span className="font-ui text-[10px] tracking-[0.16em] text-stone">ACTIVE FILTERS</span>
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <span className="font-ui text-[9px] tracking-[0.16em] text-stone">ACTIVE FILTERS:</span>
 
               {selectedGenre !== "all" && (
                 <button
@@ -581,6 +504,195 @@ function BooksCatalogStateful({
               </button>
             </div>
           )}
+
+          {/* Sliding Filter Drawer Panel */}
+          <AnimatePresence>
+            {isFiltersOpen && (
+              <>
+                {/* Backdrop Overlay */}
+                <Motion.button
+                  type="button"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsFiltersOpen(false)}
+                  className="fixed inset-0 z-50 bg-void/65 backdrop-blur-[1px] w-full h-full cursor-default"
+                  aria-label="Close filters"
+                />
+
+                {/* Drawer Aside */}
+                <Motion.aside
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
+                  className="fixed top-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col border-l border-smoke bg-obsidian shadow-2xl"
+                >
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between border-b border-smoke px-5 py-4">
+                    <div>
+                      <p className="font-ui text-[10px] tracking-[0.15em] text-gold">CATALOG</p>
+                      <h2 className="mt-1 text-safe font-title text-3xl text-ivory">Filter & Sort</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsFiltersOpen(false)}
+                      className="rounded-full border border-smoke p-2 text-stone transition hover:border-gold hover:text-gold cursor-pointer"
+                      aria-label="Close filters drawer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Drawer Body - Scrollable Form elements */}
+                  <div className="flex-1 space-y-6 overflow-y-auto px-5 py-6">
+                    {/* Sort By */}
+                    <div>
+                      <span className="block font-ui text-[10px] tracking-[0.18em] text-stone mb-2 uppercase">SORT BY</span>
+                      <select
+                        value={sortOption}
+                        onChange={(e) => {
+                          setSortOption(e.target.value as SortOption);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full bg-obsidian border border-smoke/75 rounded-md px-3 py-2.5 font-ui text-[11px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
+                      >
+                        <option value="newest">NEWEST FIRST</option>
+                        <option value="oldest">OLDEST FIRST</option>
+                        <option value="price-low">PRICE: LOW TO HIGH</option>
+                        <option value="price-high">PRICE: HIGH TO LOW</option>
+                        <option value="title-az">TITLE: A TO Z</option>
+                        <option value="best-selling">BEST SELLING</option>
+                        <option value="highest-rated">HIGHEST RATED</option>
+                      </select>
+                    </div>
+
+                    {/* Price Band */}
+                    <div>
+                      <span className="block font-ui text-[10px] tracking-[0.18em] text-stone mb-2 uppercase">PRICE BAND</span>
+                      <select
+                        value={priceFilter}
+                        onChange={(e) => {
+                          setPriceFilter(e.target.value as PriceFilter);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full bg-obsidian border border-smoke/75 rounded-md px-3 py-2.5 font-ui text-[11px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
+                      >
+                        <option value="all">ALL PRICES ({priceCounts["all"]})</option>
+                        <option value="under-400">UNDER ₹400 ({priceCounts["under-400"]})</option>
+                        <option value="400-600">₹400 - ₹600 ({priceCounts["400-600"]})</option>
+                        <option value="above-600">ABOVE ₹600 ({priceCounts["above-600"]})</option>
+                      </select>
+                    </div>
+
+                    {/* Author */}
+                    <div>
+                      <span className="block font-ui text-[10px] tracking-[0.18em] text-stone mb-2 uppercase">AUTHOR</span>
+                      <select
+                        value={selectedAuthor}
+                        onChange={(e) => {
+                          setSelectedAuthor(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full bg-obsidian border border-smoke/75 rounded-md px-3 py-2.5 font-ui text-[11px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
+                      >
+                        <option value="all">ALL AUTHORS ({books.length})</option>
+                        {authors.map((authorName) => (
+                          <option key={authorName} value={authorName}>
+                            {authorName.toUpperCase()} ({authorCounts[authorName] ?? 0})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Genre */}
+                    <div>
+                      <span className="block font-ui text-[10px] tracking-[0.18em] text-stone mb-2 uppercase">GENRE</span>
+                      <select
+                        value={selectedGenre}
+                        onChange={(e) => {
+                          setSelectedGenre(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full bg-obsidian border border-smoke/75 rounded-md px-3 py-2.5 font-ui text-[11px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
+                      >
+                        <option value="all">ALL GENRES ({books.length})</option>
+                        {genres.map((genre) => (
+                          <option key={genre} value={genre}>
+                            {genre.toUpperCase()} ({genreCounts[genre] ?? 0})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Language */}
+                    <div>
+                      <span className="block font-ui text-[10px] tracking-[0.18em] text-stone mb-2 uppercase">LANGUAGE</span>
+                      <select
+                        value={selectedLanguage}
+                        onChange={(e) => {
+                          setSelectedLanguage(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full bg-obsidian border border-smoke/75 rounded-md px-3 py-2.5 font-ui text-[11px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
+                      >
+                        <option value="all">ALL LANGUAGES ({books.length})</option>
+                        <option value="Bengali">BENGALI ({languageCounts["Bengali"] ?? 0})</option>
+                        <option value="English">ENGLISH ({languageCounts["English"] ?? 0})</option>
+                      </select>
+                    </div>
+
+                    {/* Availability */}
+                    <div>
+                      <span className="block font-ui text-[10px] tracking-[0.18em] text-stone mb-2 uppercase">AVAILABILITY</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInStockOnly(!inStockOnly);
+                          setCurrentPage(1);
+                        }}
+                        className={cn(
+                          "w-full rounded-md border py-2.5 px-3 font-ui text-[11px] tracking-[0.14em] uppercase transition-all duration-200 cursor-pointer text-center",
+                          inStockOnly
+                            ? "border-gold bg-gold/8 text-gold font-medium"
+                            : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
+                        )}
+                      >
+                        IN STOCK ONLY ({inStockCount})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Drawer Footer */}
+                  <div className="border-t border-smoke px-5 py-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSelectedGenre("all");
+                        setSelectedAuthor("all");
+                        setSelectedLanguage("all");
+                        setInStockOnly(false);
+                        setPriceFilter("all");
+                        setSortOption("newest");
+                        setCurrentPage(1);
+                      }}
+                      className="rounded-full border border-smoke px-4 py-2 font-ui text-[10px] tracking-[0.12em] text-parchment transition hover:border-ember hover:text-ember cursor-pointer"
+                    >
+                      CLEAR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsFiltersOpen(false)}
+                      className="fx-button inline-flex flex-1 items-center justify-center rounded-full border border-gold bg-gold px-4 py-2.5 font-mono text-xs font-medium tracking-widest text-void shadow-lg transition hover:bg-ivory hover:border-ivory cursor-pointer"
+                    >
+                      SHOW {filteredBooks.length} BOOKS
+                    </button>
+                  </div>
+                </Motion.aside>
+              </>
+            )}
+          </AnimatePresence>
 
         </div>
       </section>
@@ -722,12 +834,12 @@ function BooksCatalogStateful({
                         <p className="font-body text-sm text-stone">{book.authorName}</p>
 
                         <div className="flex flex-wrap gap-1.5 pt-1">
-                          {book.genreNames.map((genre) => (
-                            <span
-                              key={`${book.id}-${genre}`}
-                              className="rounded-full border border-smoke/70 px-2.5 py-0.5 font-mono text-[10px] text-stone"
-                            >
-                              {genre}
+                          {book.genreNames.map((genre, idx) => (
+                            <span key={`${book.id}-${genre}`}>
+                              {idx > 0 && <span className="sr-only">, </span>}
+                              <span className="rounded-full border border-smoke/70 px-2.5 py-0.5 font-mono text-[10px] text-stone">
+                                {genre}
+                              </span>
                             </span>
                           ))}
                         </div>
@@ -817,6 +929,9 @@ export default function BooksCatalogClient({
       initialGenre={searchParams.get("genre")?.trim() || "all"}
       initialSort={parseSortOption(searchParams.get("sort") ?? undefined)}
       initialPriceFilter={parsePriceFilter(searchParams.get("price") ?? undefined)}
+      initialAuthor={searchParams.get("author")?.trim() || "all"}
+      initialLanguage={searchParams.get("language")?.trim() || "all"}
+      initialInStock={searchParams.get("inStock") === "true"}
     />
   );
 }

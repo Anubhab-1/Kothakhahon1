@@ -18,7 +18,14 @@ export default function AnimatedCounter({
 }: AnimatedCounterProps) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
-  const [displayValue, setDisplayValue] = useState(0);
+  const [displayValue, setDisplayValue] = useState(value);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMounted(true);
+    setDisplayValue(0);
+  }, []);
 
   useEffect(() => {
     const node = ref.current;
@@ -43,7 +50,7 @@ export default function AnimatedCounter({
   }, []);
 
   useEffect(() => {
-    if (!hasStarted) return;
+    if (!hasStarted || !isMounted) return;
 
     let frameId = 0;
     let startTime = 0;
@@ -69,7 +76,7 @@ export default function AnimatedCounter({
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [durationMs, hasStarted, value]);
+  }, [durationMs, hasStarted, isMounted, value]);
 
   return (
     <span ref={ref} className={cn("tabular-nums", className)}>

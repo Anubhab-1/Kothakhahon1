@@ -43,6 +43,13 @@ export default function AddToCart({
     <button
       type="button"
       suppressHydrationWarning
+      aria-label={
+        disabled
+          ? `${disabledLabel}: ${title}`
+          : added
+          ? `${addedLabel}: ${title}`
+          : `Add ${title} to cart`
+      }
       onClick={() => {
         if (disabled) {
           return;

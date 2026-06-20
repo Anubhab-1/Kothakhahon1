@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BrandLogo from "@/components/layout/BrandLogo";
 import CatalogSearchForm from "@/components/layout/CatalogSearchForm";
@@ -84,7 +84,14 @@ export default function NavBarClient() {
             </nav>
 
             <div className="hidden items-center gap-2 md:flex xl:gap-4">
-              <CatalogSearchForm className="hidden w-[280px] xl:block" />
+              <CatalogSearchForm className="hidden w-[200px] lg:block xl:w-[280px]" />
+              <Link
+                href="/account/wishlist"
+                className="fx-button rounded-full border border-smoke p-2 text-parchment transition hover:border-gold hover:text-gold"
+                aria-label="View wishlist"
+              >
+                <Heart className="h-4 w-4" />
+              </Link>
               <CartIcon />
               {user ? (
                 <Link
@@ -105,6 +112,13 @@ export default function NavBarClient() {
             </div>
 
             <div className="flex items-center gap-2 md:hidden">
+              <Link
+                href="/account/wishlist"
+                className="rounded-full border border-smoke p-2 text-parchment transition hover:border-gold hover:text-gold"
+                aria-label="View wishlist"
+              >
+                <Heart className="h-4 w-4" />
+              </Link>
               <CartIcon />
               <button
                 type="button"

@@ -93,7 +93,9 @@ export default function ContactForm() {
     <form onSubmit={onSubmit} className="editorial-panel rounded-2xl p-7 md:p-9">
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
-          <label className="font-ui text-xs tracking-[0.13em] text-parchment">FULL NAME</label>
+          <label className="font-ui text-xs tracking-[0.13em] text-parchment">
+            FULL NAME <span className="text-gold ml-1 font-bold" aria-hidden="true">*</span>
+          </label>
           <input
             type="text"
             {...register("fullName")}
@@ -104,7 +106,9 @@ export default function ContactForm() {
         </div>
 
         <div className="space-y-2">
-          <label className="font-ui text-xs tracking-[0.13em] text-parchment">EMAIL</label>
+          <label className="font-ui text-xs tracking-[0.13em] text-parchment">
+            EMAIL <span className="text-gold ml-1 font-bold" aria-hidden="true">*</span>
+          </label>
           <input
             type="email"
             {...register("email")}
@@ -116,7 +120,9 @@ export default function ContactForm() {
       </div>
 
       <div className="mt-5 space-y-2">
-        <label className="font-ui text-xs tracking-[0.13em] text-parchment">DEPARTMENT</label>
+        <label className="font-ui text-xs tracking-[0.13em] text-parchment">
+          DEPARTMENT <span className="text-gold ml-1 font-bold" aria-hidden="true">*</span>
+        </label>
         <select
           {...register("department")}
           className="w-full rounded-xl border border-smoke bg-void px-3 py-2.5 font-body text-base text-ivory outline-none ring-gold transition focus:ring-1"
@@ -132,7 +138,9 @@ export default function ContactForm() {
 
       <div className="mt-5 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <label className="font-ui text-xs tracking-[0.13em] text-parchment">MESSAGE</label>
+          <label className="font-ui text-xs tracking-[0.13em] text-parchment">
+            MESSAGE <span className="text-gold ml-1 font-bold" aria-hidden="true">*</span>
+          </label>
           <span className="font-mono text-xs text-stone">{messageLength}/1800</span>
         </div>
         <textarea

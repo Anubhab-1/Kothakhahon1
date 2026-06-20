@@ -85,8 +85,17 @@ export default function HomePageClient({
 
   const allCatalogBooks = allBooks.length > 0 ? allBooks : featuredBooks;
   const sortedBooks = sortBooksByDate(allCatalogBooks);
-  const newReleases = sortedBooks.slice(0, 4);
-  const affordableEditions = sortedBooks.filter((book) => typeof book.price === "number" && book.price < 400).slice(0, 4);
+
+  // Dynamic rail deduplication to avoid repeating featured books across homepage rails
+  const featuredIds = new Set(featuredBooks.map(b => b._id));
+  const nonFeaturedBooks = sortedBooks.filter(book => !featuredIds.has(book._id));
+
+  const newReleases = (nonFeaturedBooks.length >= 4 ? nonFeaturedBooks : sortedBooks).slice(0, 4);
+  const affordableFiltered = nonFeaturedBooks.filter((book) => typeof book.price === "number" && book.price < 400);
+  const affordableEditions = (affordableFiltered.length >= 4 
+    ? affordableFiltered 
+    : sortedBooks.filter((book) => typeof book.price === "number" && book.price < 400)
+  ).slice(0, 4);
 
   return (
     <div className="grain-overlay">
@@ -97,7 +106,7 @@ export default function HomePageClient({
             alt="Cinematic desk scene with open antique book, inkwell, and feather quills"
             fill
             priority
-            sizes="100vw"
+            sizes="(max-width: 768px) 100vw, (max-width: 1920px) 1920px, 2048px"
             quality={75}
             className="object-cover object-[75%_center]"
           />
@@ -146,23 +155,23 @@ export default function HomePageClient({
               </Link>
               <Link
                 href="/books?sort=newest"
-                className="rounded-full border border-gold/45 bg-void/55 px-9 py-3.5 font-title text-lg font-medium text-ivory shadow-xl transition-all duration-300 hover:border-gold hover:text-gold"
+                className="rounded-full border border-smoke/70 bg-transparent px-9 py-3.5 font-title text-lg font-medium text-parchment hover:border-gold hover:text-gold transition duration-200"
               >
                 Shop New Releases
               </Link>
             </div>
 
-            <div className="flex flex-wrap gap-3 font-ui text-[11px] tracking-[0.14em] text-parchment/80">
-              <span className="rounded-full border border-smoke/70 px-3 py-1">GUEST CHECKOUT</span>
-              <span className="rounded-full border border-smoke/70 px-3 py-1">COD IN INDIA</span>
-              <span className="rounded-full border border-smoke/70 px-3 py-1">OPEN SUBMISSIONS</span>
-            </div>
+            <ul className="flex flex-wrap gap-3 font-ui text-[11px] tracking-[0.14em] text-parchment/80" aria-label="Store highlights">
+              <li className="rounded-full border border-smoke/70 px-3 py-1">GUEST CHECKOUT</li>
+              <li className="rounded-full border border-smoke/70 px-3 py-1">COD IN INDIA</li>
+              <li className="rounded-full border border-smoke/70 px-3 py-1">OPEN SUBMISSIONS</li>
+            </ul>
           </div>
         </motion.div>
       </section>
 
       <div className="border-y border-smoke bg-obsidian/70 py-3">
-        <div className="animate-[ticker_20s_linear_infinite] whitespace-nowrap font-ui text-[11px] tracking-[0.2em] text-parchment">
+        <div className="animate-[ticker_20s_linear_infinite] motion-reduce:animate-none whitespace-nowrap font-ui text-[11px] tracking-[0.2em] text-parchment">
           NEW RELEASES / EDITORIAL NOTES / AUTHOR FEATURES / GIFTABLE EDITIONS / NEW RELEASES / EDITORIAL NOTES / AUTHOR FEATURES / GIFTABLE EDITIONS /
         </div>
       </div>

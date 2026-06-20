@@ -43,19 +43,19 @@ export default function ContactPageClient({ support }: ContactPageClientProps) {
     {
       title: "Editorial",
       email: support?.editorialEmail || "editor@kothakhahon.com",
-      description: "General publishing questions, catalog requests, and editorial correspondence.",
+      description: "Email directly for direct publishing proposals, catalog queries, and editorial correspondence.",
       icon: PenSquare,
     },
     {
       title: "Submissions",
       email: support?.submissionsEmail || "submissions@kothakhahon.com",
-      description: "Submission process questions and manuscript-related communication.",
+      description: "Email directly for manuscript guidelines or queries about submissions currently in review.",
       icon: Newspaper,
     },
     {
       title: "Rights & Permissions",
       email: support?.rightsEmail || "rights@kothakhahon.com",
-      description: "Translation rights, extracts, reprints, and adaptation enquiries.",
+      description: "Email directly for translation rights, extracts, reprints, and adaptation inquiries.",
       icon: Copyright,
     },
   ];
@@ -152,6 +152,12 @@ export default function ContactPageClient({ support }: ContactPageClientProps) {
           </div>
 
           <div>
+            <div className="mb-4">
+              <h2 className="font-title text-3xl text-ivory">Routed Message Desk</h2>
+              <p className="mt-2 font-body text-base text-stone">
+                If you are unsure which desk you need, or prefer to send a routed note, use the form below. We will automatically direct it to the appropriate team member.
+              </p>
+            </div>
             <ContactForm />
           </div>
         </div>

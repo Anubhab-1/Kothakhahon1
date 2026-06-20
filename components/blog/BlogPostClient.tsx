@@ -8,6 +8,7 @@ import ShareButton from "@/components/ui/ShareButton";
 import { ReadingProgressBar } from "@/components/ui/ReadingProgressBar";
 import type { BlogPostCardView, BlogPostDetailView } from "@/lib/types";
 import { getSiteUrlString } from "@/lib/env";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 interface BlogPostClientProps {
   post: BlogPostDetailView;
@@ -31,6 +32,7 @@ export default function BlogPostClient({ post, relatedPosts }: BlogPostClientPro
   return (
     <article className="grain-overlay pb-20">
       <ReadingProgressBar />
+      <Breadcrumbs items={[{ label: "JOURNAL", href: "/blog" }, { label: post.title }]} />
       <motion.header
         variants={reveal}
         initial="hidden"

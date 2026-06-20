@@ -38,6 +38,14 @@ export default function AuthorsIndexClient({ authors }: AuthorsIndexClientProps)
     return authors.filter((author) => normalizeLetter(author.name) === selectedLetter);
   }, [authors, selectedLetter]);
 
+  const writers = useMemo(() => {
+    return filtered.filter((author) => author.bookCount > 0);
+  }, [filtered]);
+
+  const editorialTeam = useMemo(() => {
+    return filtered.filter((author) => author.bookCount === 0);
+  }, [filtered]);
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-16 md:px-8">
       <p className="font-ui text-xs tracking-[0.16em] text-gold">AUTHORS</p>
@@ -64,57 +72,121 @@ export default function AuthorsIndexClient({ authors }: AuthorsIndexClientProps)
       </div>
 
       {filtered.length > 0 ? (
-        <motion.div
-          key={selectedLetter}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22 }}
-          className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {filtered.map((author) => (
-            <Link
-              key={author.id}
-              href={`/authors/${author.slug}`}
-              className="fx-card group rounded-xl border border-smoke bg-obsidian p-5 transition hover:border-gold/60"
-            >
-              <div className="flex items-start gap-4">
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-smoke bg-ash">
-                  {author.photoUrl ? (
-                    <Image
-                      src={author.photoUrl}
-                      alt={author.name}
-                      fill
-                      sizes="64px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="font-title text-2xl text-gold/70">
-                        {author.name.trim().charAt(0).toUpperCase()}
-                      </span>
+        <div className="space-y-16 mt-10">
+          {writers.length > 0 && (
+            <div>
+              <h2 className="font-title text-xl text-gold mb-6 uppercase tracking-[0.16em]">Writers</h2>
+              <motion.div
+                key={`writers-${selectedLetter}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22 }}
+                className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                {writers.map((author) => (
+                  <Link
+                    key={author.id}
+                    href={`/authors/${author.slug}`}
+                    className="fx-card group rounded-xl border border-smoke bg-obsidian/85 p-5 transition hover:border-gold/60 hover:shadow-[0_12px_36px_rgba(201,151,58,0.08)] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start gap-4">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-smoke bg-ash">
+                          {author.photoUrl ? (
+                            <Image
+                              src={author.photoUrl}
+                              alt={author.name}
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <span className="font-title text-2xl text-gold/70">
+                                {author.name.trim().charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="line-clamp-2 text-safe font-title text-3xl text-ivory group-hover:text-gold transition-colors duration-200">
+                            {author.name}
+                          </h2>
+                          <span className="inline-block mt-2 rounded-full border border-gold/45 bg-gold/5 px-2.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-gold font-bold">
+                            {author.bookCount} {author.bookCount === 1 ? "BOOK" : "BOOKS"}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="mt-4 line-clamp-3 font-body text-base text-parchment/90 leading-relaxed">
+                        {author.bio ?? "Open the profile to see the writer's books and editorial note."}
+                      </p>
                     </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="line-clamp-2 text-safe font-title text-3xl text-ivory">
-                    {author.name}
-                  </h2>
-                  <p className="mt-1 font-mono text-xs text-stone">
-                    {author.bookCount > 0
-                      ? `${author.bookCount} ${author.bookCount === 1 ? "book" : "books"}`
-                      : "Editorial voice"}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 line-clamp-3 font-body text-base text-parchment/90">
-                {author.bio ?? "Open the profile to see the writer's books and editorial note."}
-              </p>
-              <p className="fx-link mt-4 font-ui text-[11px] tracking-[0.13em] text-gold">
-                OPEN PROFILE
-              </p>
-            </Link>
-          ))}
-        </motion.div>
+                    <p className="fx-link mt-4 font-ui text-[11px] tracking-[0.13em] text-gold">
+                      OPEN PROFILE &rarr;
+                    </p>
+                  </Link>
+                ))}
+              </motion.div>
+            </div>
+          )}
+
+          {editorialTeam.length > 0 && (
+            <div>
+              <h2 className="font-title text-xl text-stone mb-6 uppercase tracking-[0.16em]">Editorial Team</h2>
+              <motion.div
+                key={`editorial-${selectedLetter}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22 }}
+                className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                {editorialTeam.map((author) => (
+                  <Link
+                    key={author.id}
+                    href={`/authors/${author.slug}`}
+                    className="fx-card group rounded-xl border border-smoke bg-obsidian/85 p-5 transition hover:border-gold/60 hover:shadow-[0_12px_36px_rgba(201,151,58,0.08)] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start gap-4">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-smoke bg-ash">
+                          {author.photoUrl ? (
+                            <Image
+                              src={author.photoUrl}
+                              alt={author.name}
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <span className="font-title text-2xl text-gold/70">
+                                {author.name.trim().charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="line-clamp-2 text-safe font-title text-3xl text-ivory group-hover:text-gold transition-colors duration-200">
+                            {author.name}
+                          </h2>
+                          <span className="inline-block mt-2 rounded-full border border-smoke/70 bg-void/35 px-2.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-stone font-semibold">
+                            EDITORIAL TEAM
+                          </span>
+                        </div>
+                      </div>
+                      <p className="mt-4 line-clamp-3 font-body text-base text-parchment/90 leading-relaxed">
+                        {author.bio ?? "Open the profile to see the writer's books and editorial note."}
+                      </p>
+                    </div>
+                    <p className="fx-link mt-4 font-ui text-[11px] tracking-[0.13em] text-gold">
+                      OPEN PROFILE &rarr;
+                    </p>
+                  </Link>
+                ))}
+              </motion.div>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="mt-8 rounded-xl border border-smoke bg-obsidian p-8 text-center">
           <p className="font-body text-lg text-stone">No author profiles match this letter yet.</p>

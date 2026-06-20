@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, Languages, Library, Medal } from "lucide-react";
 import { formatINR } from "@/lib/utils";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 export interface AuthorBookItem {
   id: string;
@@ -34,7 +35,9 @@ export default function AuthorDetailClient({ author, books }: AuthorDetailClient
   const uniqueLanguages = Array.from(new Set(books.map((book) => book.language).filter(Boolean)));
 
   return (
-    <div className="grain-overlay mx-auto w-full max-w-7xl px-4 py-14 md:px-8 md:py-18">
+    <div className="grain-overlay">
+      <Breadcrumbs items={[{ label: "AUTHORS", href: "/authors" }, { label: author.name }]} />
+      <div className="mx-auto w-full max-w-7xl px-4 py-10 md:px-8 md:py-12">
       <section className="editorial-panel grid gap-8 rounded-2xl p-6 md:grid-cols-[260px_1fr] md:p-8">
         <div className="book-edge relative aspect-square overflow-hidden rounded-xl border border-smoke bg-ash">
           {author.photoUrl ? (
@@ -135,6 +138,7 @@ export default function AuthorDetailClient({ author, books }: AuthorDetailClient
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }

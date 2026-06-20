@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CatalogBook } from "@/lib/types";
 import { getStockStatusLabel, isBookAvailableForSale } from "@/lib/inventory";
-import { formatINR } from "@/lib/utils";
+import { formatINR, cn } from "@/lib/utils";
 import TiltCard from "@/components/ui/TiltCard";
 import AddToCart from "@/components/ui/AddToCart";
 import DecorativeBookCover from "@/components/ui/DecorativeBookCover";
@@ -50,9 +50,16 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
           <div className="absolute left-2.5 top-2.5 rounded-full border border-gold/40 bg-void/80 px-2 py-1 font-ui text-[9px] tracking-[0.14em] text-gold sm:left-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
             BOOK
           </div>
-          <div className="absolute right-2.5 top-2.5 rounded-full border border-smoke bg-void/80 px-2 py-1 font-ui text-[9px] tracking-[0.14em] text-parchment sm:right-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
-            {getStockStatusLabel(book.stockStatus).toUpperCase()}
-          </div>
+          {book.stockStatus !== "in_stock" && (
+            <div className={cn(
+              "absolute right-2.5 top-2.5 rounded-full border bg-void/80 px-2 py-1 font-ui text-[9px] tracking-[0.14em] sm:right-3 sm:top-3 sm:px-2.5 sm:text-[10px]",
+              book.stockStatus === "out_of_stock" 
+                ? "border-ember/50 text-ember" 
+                : "border-gold/50 text-gold animate-pulse"
+            )}>
+              {getStockStatusLabel(book.stockStatus).toUpperCase()}
+            </div>
+          )}
         </div>
 
         <div className="relative z-20 mt-3 flex flex-1 flex-col justify-between sm:mt-4">
@@ -63,12 +70,12 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
             <p className="line-clamp-1 font-body text-[13px] text-stone sm:text-sm">{book.authorName}</p>
 
             <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {book.genreNames.slice(0, 2).map((genre) => (
-                <span
-                  key={`${book.id}-${genre}`}
-                  className="rounded-full border border-gold/25 bg-gold/5 px-2.5 py-0.5 font-mono text-[9px] text-stone"
-                >
-                  {genre}
+              {book.genreNames.slice(0, 2).map((genre, idx) => (
+                <span key={`${book.id}-${genre}`}>
+                  {idx > 0 && <span className="sr-only">, </span>}
+                  <span className="rounded-full border border-gold/25 bg-gold/5 px-2.5 py-0.5 font-mono text-[9px] text-stone">
+                    {genre}
+                  </span>
                 </span>
               ))}
             </div>

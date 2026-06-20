@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import {
   Barcode,
   BookOpenText,
@@ -51,8 +52,6 @@ export default function BookDetailClient({
   reviews,
 }: BookDetailClientProps) {
   const session = usePublicSession();
-  const searchParams = useSearchParams();
-  const reviewParam = searchParams.get("review");
 
   const isAvailable = isBookAvailableForSale(book);
   const stockStatusLabel = getStockStatusLabel(book.stockStatus);
@@ -107,6 +106,7 @@ export default function BookDetailClient({
 
   return (
     <div className="pb-28 md:pb-12">
+      <Breadcrumbs items={[{ label: "BOOKS", href: "/books" }, { label: book.title }]} />
       <section className="mx-auto grid w-full max-w-7xl gap-12 px-4 py-14 md:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:py-20">
         <motion.div variants={reveal} initial="hidden" animate="show" transition={{ duration: 0.45 }}>
           <div className="editorial-panel rounded-2xl p-5 md:p-6">
@@ -445,32 +445,9 @@ export default function BookDetailClient({
             <p className="mt-3 font-body text-base leading-relaxed text-stone">
               Reviews are moderated before they appear publicly. Verified purchase badges are added automatically for readers who ordered this title while signed in.
             </p>
-
-            {/* Review status feedback banners */}
-            {reviewParam === "submitted" && (
-              <div className="mt-4 rounded-xl border border-gold/30 bg-gold/5 p-4 text-left">
-                <p className="font-ui text-[10px] tracking-[0.12em] text-gold font-bold">SUCCESS</p>
-                <p className="mt-1 font-body text-sm text-parchment">
-                  Thank you! Your review has been submitted and is currently queued for editorial moderation.
-                </p>
-              </div>
-            )}
-            {reviewParam === "invalid" && (
-              <div className="mt-4 rounded-xl border border-ember/30 bg-ember/5 p-4 text-left">
-                <p className="font-ui text-[10px] tracking-[0.12em] text-ember font-bold">ERROR</p>
-                <p className="mt-1 font-body text-sm text-parchment">
-                  Submission failed. Please make sure display name, title, review body, and a 1-5 star rating are provided.
-                </p>
-              </div>
-            )}
-            {reviewParam === "admin" && (
-              <div className="mt-4 rounded-xl border border-ember/30 bg-ember/5 p-4 text-left">
-                <p className="font-ui text-[10px] tracking-[0.12em] text-ember font-bold">ADMIN ACCOUNT</p>
-                <p className="mt-1 font-body text-sm text-parchment">
-                  Admin accounts cannot submit catalog reviews. Please log in as a customer.
-                </p>
-              </div>
-            )}
+            <Suspense fallback={null}>
+              <ReviewFeedbackBanners />
+            </Suspense>
 
             {session ? (
               <form action={createBookReviewAction} className="mt-6 space-y-4">
@@ -740,5 +717,41 @@ export default function BookDetailClient({
         </div>
       </div>
     </div>
+  );
+}
+
+function ReviewFeedbackBanners() {
+  const searchParams = useSearchParams();
+  const reviewParam = searchParams.get("review");
+
+  if (!reviewParam) return null;
+
+  return (
+    <>
+      {reviewParam === "submitted" && (
+        <div className="mt-4 rounded-xl border border-gold/30 bg-gold/5 p-4 text-left">
+          <p className="font-ui text-[10px] tracking-[0.12em] text-gold font-bold">SUCCESS</p>
+          <p className="mt-1 font-body text-sm text-parchment">
+            Thank you! Your review has been submitted and is currently queued for editorial moderation.
+          </p>
+        </div>
+      )}
+      {reviewParam === "invalid" && (
+        <div className="mt-4 rounded-xl border border-ember/30 bg-ember/5 p-4 text-left">
+          <p className="font-ui text-[10px] tracking-[0.12em] text-ember font-bold">ERROR</p>
+          <p className="mt-1 font-body text-sm text-parchment">
+            Submission failed. Please make sure display name, title, review body, and a 1-5 star rating are provided.
+          </p>
+        </div>
+      )}
+      {reviewParam === "admin" && (
+        <div className="mt-4 rounded-xl border border-ember/30 bg-ember/5 p-4 text-left">
+          <p className="font-ui text-[10px] tracking-[0.12em] text-ember font-bold">ADMIN ACCOUNT</p>
+          <p className="mt-1 font-body text-sm text-parchment">
+            Admin accounts cannot submit catalog reviews. Please log in as a customer.
+          </p>
+        </div>
+      )}
+    </>
   );
 }

@@ -38,7 +38,7 @@ function StarsMini({ rating, count }: { rating: number; count: number }) {
           </svg>
         ))}
       </span>
-      <span className="font-mono text-[10px] text-stone">{count}</span>
+      <span className="font-mono text-[10px] text-stone">({count})</span>
     </div>
   );
 }
