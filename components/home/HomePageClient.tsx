@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, CreditCard, PackageCheck, ScrollText } from "lucide-react";
 import BookCard from "@/components/ui/BookCard";
 import NewsletterForm from "@/components/ui/NewsletterForm";
 import SectionHeader from "@/components/ui/SectionHeader";
@@ -36,29 +35,6 @@ const genreCards = [
   {
     name: "Narrative Non-Fiction",
     description: "Biography, criticism, and cultural writing for serious readers.",
-  },
-];
-
-const readerPromises = [
-  {
-    title: "Cash On Delivery",
-    description: "Available for eligible India orders at checkout.",
-    icon: CreditCard,
-  },
-  {
-    title: "Guest Checkout",
-    description: "Readers can order directly without creating an account first.",
-    icon: PackageCheck,
-  },
-  {
-    title: "Packed In Kolkata",
-    description: "Orders are handled from the publishing desk and shipping queue in Kolkata.",
-    icon: BookOpen,
-  },
-  {
-    title: "Editorial Support",
-    description: "Questions on books, gifting, or submissions are answered by a real desk.",
-    icon: ScrollText,
   },
 ];
 
@@ -183,23 +159,6 @@ export default function HomePageClient({
             </div>
           </div>
         </motion.div>
-      </section>
-
-      <section className="border-y border-smoke bg-[linear-gradient(90deg,rgba(17,15,13,0.98),rgba(30,25,18,0.96),rgba(17,15,13,0.98))]">
-        <div className="mx-auto grid max-w-7xl gap-4 px-4 py-5 md:grid-cols-2 md:px-8 xl:grid-cols-4">
-          {readerPromises.map((promise) => {
-            const Icon = promise.icon;
-            return (
-              <article key={promise.title} className="flex items-start gap-3 rounded-2xl border border-smoke/80 bg-black/10 p-4">
-                <Icon className="mt-1 h-5 w-5 shrink-0 text-gold" />
-                <div>
-                  <p className="font-ui text-[11px] tracking-[0.14em] text-parchment">{promise.title.toUpperCase()}</p>
-                  <p className="mt-1 font-body text-sm text-stone">{promise.description}</p>
-                </div>
-              </article>
-            );
-          })}
-        </div>
       </section>
 
       <div className="border-y border-smoke bg-obsidian/70 py-3">
