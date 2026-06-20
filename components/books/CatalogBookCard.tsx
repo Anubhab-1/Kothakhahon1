@@ -19,7 +19,7 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
   return (
     <TiltCard>
       <article
-        className="fx-card group relative rounded-2xl border border-smoke bg-obsidian/85 p-3 transition hover:border-gold/60 hover:shadow-[0_16px_45px_rgba(201,151,58,0.22)] sm:p-4"
+        className="fx-card group relative flex flex-col h-full rounded-2xl border border-smoke bg-obsidian/85 p-3 transition hover:border-gold/60 hover:shadow-[0_16px_45px_rgba(201,151,58,0.22)] sm:p-4"
       >
         <Link
           href={`/books/${book.slug}`}
@@ -27,7 +27,7 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
           aria-label={`Open ${book.title}`}
         />
 
-        <div className="book-edge relative aspect-[3/4] overflow-hidden rounded-xl">
+        <div className="book-edge relative aspect-[3/4] overflow-hidden rounded-xl shrink-0">
           {book.coverImageUrl ? (
             <Image
               src={book.coverImageUrl}
@@ -55,45 +55,48 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
           </div>
         </div>
 
-        <div className="relative z-20 mt-3 space-y-1.5 sm:mt-4 sm:space-y-2">
-          <h3 className="line-clamp-2 text-safe font-title text-[1.28rem] leading-tight text-ivory sm:text-[1.55rem] xl:text-[1.8rem]">
-            {book.title}
-          </h3>
-          <p className="line-clamp-1 font-body text-[13px] text-stone sm:text-sm">{book.authorName}</p>
+        <div className="relative z-20 mt-3 flex flex-1 flex-col justify-between sm:mt-4">
+          <div className="space-y-1.5 sm:space-y-2">
+            <h3 className="line-clamp-2 text-safe font-title text-[1.2rem] leading-tight text-ivory sm:text-[1.38rem] xl:text-[1.5rem]">
+              {book.title}
+            </h3>
+            <p className="line-clamp-1 font-body text-[13px] text-stone sm:text-sm">{book.authorName}</p>
 
-          <div className="hidden flex-wrap gap-1.5 sm:flex">
-            {book.genreNames.slice(0, 2).map((genre) => (
-              <span
-                key={`${book.id}-${genre}`}
-                className="rounded-full border border-smoke px-2 py-1 font-mono text-[10px] text-stone"
-              >
-                {genre}
-              </span>
-            ))}
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {book.genreNames.slice(0, 2).map((genre) => (
+                <span
+                  key={`${book.id}-${genre}`}
+                  className="rounded-full border border-gold/25 bg-gold/5 px-2.5 py-0.5 font-mono text-[9px] text-stone"
+                >
+                  {genre}
+                </span>
+              ))}
+            </div>
           </div>
 
-          <div className="ink-divider mt-2" />
-
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <p
-              aria-label={`Price ${formatINR(book.price)}`}
-              className="rounded-full border border-smoke px-2 py-1 font-mono text-[11px] text-parchment sm:px-2.5 sm:text-xs"
-            >
-              {formatINR(book.price)}
-            </p>
-            <AddToCart
-              bookId={book.id}
-              title={book.title}
-              price={book.price}
-              authorName={book.authorName}
-              coverImageUrl={book.coverImageUrl}
-              disabled={!isAvailable}
-              label="ADD TO CART"
-              addedLabel="ADDED TO CART"
-              mobileLabel="ADD"
-              mobileAddedLabel="ADDED"
-              className="min-w-0 px-3 py-2 text-[9px] tracking-[0.12em] sm:px-4 sm:text-[10px] sm:tracking-[0.14em]"
-            />
+          <div className="mt-4 pt-1">
+            <div className="ink-divider mb-3" />
+            <div className="flex items-center justify-between gap-2">
+              <p
+                aria-label={`Price ${formatINR(book.price)}`}
+                className="rounded-full border border-smoke px-2.5 py-1 font-mono text-[11px] text-parchment sm:text-xs"
+              >
+                {formatINR(book.price)}
+              </p>
+              <AddToCart
+                bookId={book.id}
+                title={book.title}
+                price={book.price}
+                authorName={book.authorName}
+                coverImageUrl={book.coverImageUrl}
+                disabled={!isAvailable}
+                label="ADD TO CART"
+                addedLabel="ADDED TO CART"
+                mobileLabel="ADD"
+                mobileAddedLabel="ADDED"
+                className="min-w-0 px-3 py-2 text-[9px] tracking-[0.12em] sm:px-4 sm:text-[10px] sm:tracking-[0.14em]"
+              />
+            </div>
           </div>
         </div>
       </article>

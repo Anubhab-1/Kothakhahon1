@@ -73,7 +73,7 @@ body {
 }
 
 * {
-  border-color: var(--smoke);
+  border-color: rgba(201, 151, 58, 0.12);
 }
 
 *::-webkit-scrollbar {

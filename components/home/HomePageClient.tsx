@@ -242,38 +242,44 @@ export default function HomePageClient({
         transition={sectionTransition}
         className="mx-auto w-full max-w-7xl px-4 pb-20 md:px-8"
       >
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div>
-            <SectionHeader
-              eyebrow="JUST ARRIVED"
-              title="Fresh From The Desk"
-              description="Recently added books for returning readers who want to see what changed on the shelf."
-            />
-            <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5">
-              {newReleases.map((book) => (
-                <BookCard key={book._id} book={book} />
-              ))}
-            </div>
-          </div>
+        <SectionHeader
+          eyebrow="JUST ARRIVED"
+          title="Fresh From The Desk"
+          description="Recently added books for returning readers who want to see what changed on the shelf."
+        />
+        <div className="mt-4 ink-divider" />
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+          {newReleases.map((book) => (
+            <BookCard key={book._id} book={book} />
+          ))}
+        </div>
+      </motion.section>
 
-          <div>
-            <SectionHeader
-              eyebrow="READER-FRIENDLY"
-              title="Good Entry Points Under INR 400"
-              description="A useful shelf for gifting, first orders, and readers discovering the press."
-            />
-            <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5">
-              {affordableEditions.length > 0 ? (
-                affordableEditions.map((book) => <BookCard key={book._id} book={book} />)
-              ) : (
-                <div className="col-span-full rounded-xl border border-smoke bg-obsidian p-6">
-                  <p className="font-body text-base text-stone">
-                    Lower-priced editions will appear here as the catalog grows.
-                  </p>
-                </div>
-              )}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.1 }}
+        transition={sectionTransition}
+        className="mx-auto w-full max-w-7xl px-4 pb-20 md:px-8"
+      >
+        <SectionHeader
+          eyebrow="READER-FRIENDLY"
+          title="Good Entry Points Under INR 400"
+          description="A useful shelf for gifting, first orders, and readers discovering the press."
+        />
+        <div className="mt-4 ink-divider" />
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+          {affordableEditions.length > 0 ? (
+            affordableEditions.map((book) => (
+              <BookCard key={book._id} book={book} />
+            ))
+          ) : (
+            <div className="col-span-full rounded-xl border border-smoke bg-obsidian p-6">
+              <p className="font-body text-base text-stone">
+                Lower-priced editions will appear here as the catalog grows.
+              </p>
             </div>
-          </div>
+          )}
         </div>
       </motion.section>
 

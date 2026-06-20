@@ -49,22 +49,16 @@ export default function NavBarClient() {
 
   return (
     <header className="sticky top-0 z-50">
-      <div
-        className={cn(
-          "border-b bg-void/90 backdrop-blur transition-colors",
-          scrolled ? "border-gold/45" : "border-smoke",
-        )}
-      >
-        <div className="mx-auto max-w-7xl px-4 py-3 md:px-8">
-          <div
-            className={cn(
-              "flex items-center justify-between rounded-2xl border px-3 py-3 transition md:px-4",
-              scrolled
-                ? "border-gold/30 bg-obsidian/90 shadow-[0_10px_30px_rgba(0,0,0,0.34)]"
-                : "border-smoke bg-obsidian/70",
-            )}
-          >
-            <Link href="/" className="fx-link transition hover:text-gold" aria-label="Kothakhahon home">
+      <div className="mx-auto max-w-7xl px-4 py-3 md:px-8">
+        <div
+          className={cn(
+            "flex items-center justify-between rounded-full border px-4 py-2 transition-all duration-300 md:px-6",
+            scrolled
+              ? "border-gold/30 bg-void/95 shadow-[0_12px_40px_rgba(0,0,0,0.5),0_0_20px_rgba(216,168,75,0.06)] backdrop-blur-md scale-[0.98]"
+              : "border-smoke bg-obsidian/85 backdrop-blur-sm",
+          )}
+        >
+          <Link href="/" className="fx-link transition hover:text-gold" aria-label="Kothakhahon home">
               <BrandLogo />
             </Link>
 
@@ -123,7 +117,6 @@ export default function NavBarClient() {
             </div>
           </div>
         </div>
-      </div>
 
       <AnimatePresence>
         {mobileOpen ? (

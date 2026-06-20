@@ -308,14 +308,14 @@ function BooksCatalogStateful({
 
             {/* Sleek Custom Sort Dropdown */}
             <div className="flex items-center gap-3 self-start md:self-auto" ref={sortDropdownRef}>
-              <span className="font-ui text-[9px] tracking-[0.18em] text-stone">SORT</span>
+              <span className="font-ui text-[10px] tracking-[0.18em] text-stone">SORT</span>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setIsSortOpen(!isSortOpen)}
                   aria-haspopup="listbox"
                   aria-expanded={isSortOpen}
-                  className="flex items-center gap-4 px-3 py-1.5 border border-smoke/75 rounded-md font-ui text-[9px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold transition-all duration-200 cursor-pointer min-w-[155px] justify-between uppercase"
+                  className="flex items-center gap-4 px-3 py-1.5 border border-smoke/75 rounded-md font-ui text-[10px] sm:text-xs tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold transition-all duration-200 cursor-pointer min-w-[165px] justify-between uppercase"
                 >
                   <span>{formatSortLabel(sortOption)}</span>
                   <ChevronDown className={`h-3.5 w-3.5 text-stone/80 transition-transform duration-300 ${isSortOpen ? 'rotate-180 text-gold' : ''}`} />
@@ -332,7 +332,7 @@ function BooksCatalogStateful({
                           setIsSortOpen(false);
                           setCurrentPage(1);
                         }}
-                        className={`w-full text-left px-4 py-2 font-ui text-[9px] tracking-[0.12em] uppercase transition-colors duration-150 cursor-pointer ${
+                        className={`w-full text-left px-4 py-2 font-ui text-[10px] sm:text-xs tracking-[0.12em] uppercase transition-colors duration-150 cursor-pointer ${
                           sortOption === option
                             ? "bg-gold/8 text-gold font-medium"
                             : "text-stone hover:bg-obsidian hover:text-gold"
@@ -364,7 +364,7 @@ function BooksCatalogStateful({
                     setSelectedGenre("all");
                     setCurrentPage(1);
                   }}
-                  className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] tracking-[0.16em] uppercase transition duration-200 ${
+                  className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] sm:text-xs tracking-[0.16em] uppercase transition duration-200 ${
                     selectedGenre === "all"
                       ? "border-gold text-gold font-semibold"
                       : "border-transparent text-stone hover:text-gold"
@@ -381,7 +381,7 @@ function BooksCatalogStateful({
                       setSelectedGenre(genre);
                       setCurrentPage(1);
                     }}
-                    className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] tracking-[0.16em] uppercase transition duration-200 ${
+                    className={`shrink-0 border-b-2 px-1 pb-1 pt-0.5 font-ui text-[10px] sm:text-xs tracking-[0.16em] uppercase transition duration-200 ${
                       selectedGenre === genre
                         ? "border-gold text-gold font-semibold"
                         : "border-transparent text-stone hover:text-gold"
@@ -394,7 +394,7 @@ function BooksCatalogStateful({
             </div>
 
             {/* Price Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-smoke/35">
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-smoke/35">
               <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-2">PRICE</span>
               {[
                 { value: "all", label: "All Prices" },
@@ -409,7 +409,7 @@ function BooksCatalogStateful({
                     setPriceFilter(option.value as PriceFilter);
                     setCurrentPage(1);
                   }}
-                  className={`rounded-full border px-3 py-1 font-ui text-[9px] tracking-[0.14em] transition ${
+                  className={`rounded-full border px-3 py-1 font-ui text-[10px] sm:text-xs tracking-[0.14em] transition ${
                     priceFilter === option.value
                       ? "border-gold/60 bg-gold/8 text-gold font-medium"
                       : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
@@ -421,7 +421,7 @@ function BooksCatalogStateful({
             </div>
 
             {/* Author, Language, Availability Filters */}
-            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-smoke/35">
+            <div className="flex flex-wrap items-center gap-y-3 gap-x-4 md:gap-x-6 pt-3 border-t border-smoke/35">
               <div className="flex items-center gap-2">
                 <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">AUTHOR</span>
                 <select
@@ -430,7 +430,7 @@ function BooksCatalogStateful({
                     setSelectedAuthor(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="bg-obsidian border border-smoke/75 rounded px-2.5 py-1 font-ui text-[9px] tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
+                  className="bg-obsidian border border-smoke/75 rounded px-2.5 py-1.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-parchment hover:border-gold/50 focus:border-gold outline-none transition uppercase"
                 >
                   <option value="all">ALL AUTHORS</option>
                   {authors.map((authorName) => (
@@ -441,7 +441,7 @@ function BooksCatalogStateful({
                 </select>
               </div>
 
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2">
                 <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">LANGUAGE</span>
                 {["all", "Bengali", "English"].map((lang) => (
                   <button
@@ -451,7 +451,7 @@ function BooksCatalogStateful({
                       setSelectedLanguage(lang);
                       setCurrentPage(1);
                     }}
-                    className={`rounded-full border px-3 py-1 font-ui text-[9px] tracking-[0.14em] uppercase transition ${
+                    className={`rounded-full border px-3 py-1 font-ui text-[10px] sm:text-xs tracking-[0.14em] uppercase transition ${
                       selectedLanguage === lang
                         ? "border-gold/60 bg-gold/8 text-gold font-medium"
                         : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
@@ -462,7 +462,7 @@ function BooksCatalogStateful({
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2">
                 <span className="font-ui text-[10px] tracking-[0.16em] text-stone/75 mr-1">AVAILABILITY</span>
                 <button
                   type="button"
@@ -470,7 +470,7 @@ function BooksCatalogStateful({
                     setInStockOnly(!inStockOnly);
                     setCurrentPage(1);
                   }}
-                  className={`rounded-full border px-3 py-1 font-ui text-[9px] tracking-[0.14em] uppercase transition ${
+                  className={`rounded-full border px-3 py-1 font-ui text-[10px] sm:text-xs tracking-[0.14em] uppercase transition ${
                     inStockOnly
                       ? "border-gold/60 bg-gold/8 text-gold font-medium"
                       : "border-smoke/70 bg-transparent text-stone hover:border-gold/40 hover:text-gold"
@@ -484,13 +484,13 @@ function BooksCatalogStateful({
 
           {hasActiveFilters && (
             <div className="flex flex-wrap items-center gap-2 border-t border-smoke/70 pt-4">
-              <span className="font-ui text-[9px] tracking-[0.16em] text-stone">ACTIVE FILTERS</span>
+              <span className="font-ui text-[10px] tracking-[0.16em] text-stone">ACTIVE FILTERS</span>
 
               {selectedGenre !== "all" && (
                 <button
                   type="button"
                   onClick={() => { setSelectedGenre("all"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   GENRE: {selectedGenre.toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
@@ -501,7 +501,7 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setSelectedAuthor("all"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   AUTHOR: {selectedAuthor.toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
@@ -512,7 +512,7 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setSelectedLanguage("all"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   LANG: {selectedLanguage.toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
@@ -523,7 +523,7 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setInStockOnly(false); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   IN STOCK ONLY
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
@@ -534,7 +534,7 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setPriceFilter("all"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   PRICE: {formatPriceFilterLabel(priceFilter).toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
@@ -545,7 +545,7 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setSortOption("newest"); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   SORT: {formatSortLabel(sortOption).toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
@@ -556,7 +556,7 @@ function BooksCatalogStateful({
                 <button
                   type="button"
                   onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[9px] tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 px-2.5 py-0.5 font-ui text-[10px] sm:text-xs tracking-[0.12em] text-gold transition-all duration-200 hover:border-gold/60 hover:bg-gold/10 cursor-pointer"
                 >
                   QUERY: {searchTerm.trim().toUpperCase()}
                   <span aria-hidden className="text-[11px] opacity-70 ml-0.5">×</span>
@@ -575,7 +575,7 @@ function BooksCatalogStateful({
                   setSortOption("newest");
                   setCurrentPage(1);
                 }}
-                className="ml-auto font-ui text-[9px] tracking-[0.14em] text-stone hover:text-ember transition-colors duration-200 cursor-pointer border-b border-transparent hover:border-ember pb-0.5"
+                className="ml-auto font-ui text-[10px] tracking-[0.14em] text-stone hover:text-ember transition-colors duration-200 cursor-pointer border-b border-transparent hover:border-ember pb-0.5"
               >
                 CLEAR ALL
               </button>
@@ -708,10 +708,10 @@ function BooksCatalogStateful({
                     <div className="flex-1 flex flex-col justify-between relative z-20">
                       <div className="space-y-1.5">
                         <div className="flex flex-wrap gap-2 items-center">
-                          <span className="rounded-full border border-gold/40 bg-void/80 px-2 py-0.5 font-ui text-[9px] tracking-[0.14em] text-gold uppercase">
+                          <span className="rounded-full border border-gold/40 bg-void/80 px-2 py-0.5 font-ui text-[10px] tracking-[0.14em] text-gold uppercase">
                             BOOK
                           </span>
-                          <span className="rounded-full border border-smoke bg-void/80 px-2 py-0.5 font-ui text-[9px] tracking-[0.14em] text-parchment uppercase">
+                          <span className="rounded-full border border-smoke bg-void/80 px-2 py-0.5 font-ui text-[10px] tracking-[0.14em] text-parchment uppercase">
                             {getStockStatusLabel(book.stockStatus).toUpperCase()}
                           </span>
                         </div>
@@ -725,7 +725,7 @@ function BooksCatalogStateful({
                           {book.genreNames.map((genre) => (
                             <span
                               key={`${book.id}-${genre}`}
-                              className="rounded-full border border-smoke/70 px-2.5 py-0.5 font-mono text-[9px] text-stone"
+                              className="rounded-full border border-smoke/70 px-2.5 py-0.5 font-mono text-[10px] text-stone"
                             >
                               {genre}
                             </span>
