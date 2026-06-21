@@ -119,6 +119,10 @@ export default function CheckoutClient({
   const { items, subtotal, clearCart } = useCart();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+  useEffect(() => {
+    setIdempotencyKey(crypto.randomUUID());
+  }, []);
   const [razorpayReady, setRazorpayReady] = useState(false);
   const [step, setStep] = useState(1);
   const [pincodeLoading, setPincodeLoading] = useState(false);
@@ -336,6 +340,7 @@ export default function CheckoutClient({
   };
 
   const onSubmit = handleSubmit(async (values) => {
+    if (submitting) return;
     setSubmitError(null);
 
     if (!hasItems) {
@@ -367,7 +372,10 @@ export default function CheckoutClient({
     try {
       const response = await fetch("/api/checkout/create-order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify({
           shippingAddress: values,
           paymentMethod: values.paymentMethod,

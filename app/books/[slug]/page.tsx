@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import BookDetailClient from "@/components/books/BookDetailClient";
 import { db } from "@/lib/db";
-import { getAllBooks, getBookBySlug } from "@/lib/content";
+import { getAllBooks, getBookBySlug, hasDatabaseContent } from "@/lib/content";
 import {
   getEffectiveStockStatus,
   normalizeLowStockThreshold,
@@ -16,7 +16,7 @@ interface BookDetailPageProps {
   }>;
 }
 
-export const revalidate = 60;
+export const revalidate = 3600; // 1 hour
 
 function mapBookToDetail(book: NonNullable<Awaited<ReturnType<typeof getBookBySlug>>>): BookDetailView {
   const mappedGenres = (book.genre ?? []).map((genre) => genre.name).filter(Boolean);
@@ -81,25 +81,29 @@ async function getBookData(slug: string) {
     return null;
   }
 
+  const hasDb = await hasDatabaseContent();
+
   const [allBooks, reviews] = await Promise.all([
     getAllBooks(),
-    db.review.findMany({
-      where: {
-        bookId: book._id,
-        approved: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      select: {
-        id: true,
-        reviewerName: true,
-        rating: true,
-        title: true,
-        body: true,
-        purchaseVerified: true,
-        createdAt: true,
-      },
-    }),
+    hasDb
+      ? db.review.findMany({
+          where: {
+            bookId: book._id,
+            approved: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 12,
+          select: {
+            id: true,
+            reviewerName: true,
+            rating: true,
+            title: true,
+            body: true,
+            purchaseVerified: true,
+            createdAt: true,
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const moreByAuthor = allBooks

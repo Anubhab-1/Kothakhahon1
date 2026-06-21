@@ -134,7 +134,7 @@ async function createEmailJob(
   }: CreateEmailJobInput,
   tx?: Prisma.TransactionClient
 ) {
-  const client = tx || db;
+  const client = tx ? (tx as typeof db) : db;
   try {
     return await client.emailJob.create({
       data: {
@@ -594,7 +594,7 @@ export async function queueNewsletterSubscriptionEmails({
   ]);
 }
 
-export async function queueCashOnDeliveryOrderEmails(orderId: string) {
+export async function queueCashOnDeliveryOrderEmails(orderId: string, tx?: Prisma.TransactionClient) {
   return createEmailJobs([
     {
       type: EmailJobType.cod_order_customer,
@@ -606,10 +606,10 @@ export async function queueCashOnDeliveryOrderEmails(orderId: string) {
       payload: { orderId },
       dedupeKey: `cod-order-admin:${orderId}`,
     },
-  ]);
+  ], tx);
 }
 
-export async function queuePaidOrderEmails(orderId: string) {
+export async function queuePaidOrderEmails(orderId: string, tx?: Prisma.TransactionClient) {
   return createEmailJobs([
     {
       type: EmailJobType.paid_order_customer,
@@ -621,7 +621,7 @@ export async function queuePaidOrderEmails(orderId: string) {
       payload: { orderId },
       dedupeKey: `paid-order-admin:${orderId}`,
     },
-  ]);
+  ], tx);
 }
 
 export async function queueVerificationEmail(email: string, verificationUrl: string) {

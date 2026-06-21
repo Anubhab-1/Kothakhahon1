@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
@@ -7,6 +8,8 @@ import { Minus, Plus, Trash2, X } from "lucide-react";
 import { useCart } from "@/components/providers/CartProvider";
 import { formatINR } from "@/lib/utils";
 import { INDIA_FREE_SHIPPING_THRESHOLD } from "@/lib/shipping";
+
+import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 export default function CartDrawer() {
   const {
@@ -19,25 +22,87 @@ export default function CartDrawer() {
     clearCart,
   } = useCart();
 
+  const drawerRef = useRef<HTMLElement>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeDrawer();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const el = drawerRef.current;
+        if (!el) return;
+
+        const focusableSelector =
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const focusables = Array.from(el.querySelectorAll(focusableSelector)) as HTMLElement[];
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const previousActiveElement = document.activeElement as HTMLElement;
+
+    const focusTimer = setTimeout(() => {
+      const el = drawerRef.current;
+      if (el) {
+        const focusableSelector =
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const first = el.querySelector(focusableSelector) as HTMLElement;
+        if (first) first.focus();
+      }
+    }, 50);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(focusTimer);
+      if (previousActiveElement && typeof previousActiveElement.focus === "function") {
+        previousActiveElement.focus();
+      }
+    };
+  }, [isDrawerOpen, closeDrawer]);
+
   return (
     <AnimatePresence>
       {isDrawerOpen ? (
         <>
           <motion.button
             type="button"
-            initial={{ opacity: 0 }}
+            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : undefined}
             onClick={closeDrawer}
             className="fixed inset-0 z-50 bg-void/65 backdrop-blur-[1px]"
             aria-label="Close cart"
           />
 
           <motion.aside
-            initial={{ x: "100%" }}
+            ref={drawerRef}
+            initial={prefersReducedMotion ? { x: 0 } : { x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
+            exit={prefersReducedMotion ? { x: 0 } : { x: "100%" }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
             className="fixed top-0 right-0 z-50 flex h-dvh w-full max-w-md flex-col border-l border-smoke bg-obsidian shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-smoke px-5 py-4">

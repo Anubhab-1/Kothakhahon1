@@ -15,6 +15,7 @@ import CartDrawer from "@/components/ui/CartDrawer";
 import { CartProvider } from "@/components/providers/CartProvider";
 import { LenisProvider } from "@/components/providers/LenisProvider";
 import { PublicSessionProvider } from "@/components/auth/PublicSessionProvider";
+import ToastProvider from "@/components/providers/ToastProvider";
 import ConditionalPublicChrome from "@/components/layout/ConditionalPublicChrome";
 import { getSiteUrl } from "@/lib/env";
 
@@ -115,6 +116,7 @@ export default function RootLayout({
                   <ScrollToTop />
                   <CartDrawer />
                 </ConditionalPublicChrome>
+                <ToastProvider />
               </LenisProvider>
             </div>
           </CartProvider>

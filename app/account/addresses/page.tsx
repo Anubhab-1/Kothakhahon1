@@ -5,6 +5,7 @@ import { MapPin, Plus, Star, Trash2 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import AuthSubmitButton from "@/components/auth/AuthSubmitButton";
+import ToastTrigger from "@/components/ui/ToastTrigger";
 import {
   createAddressAction,
   deleteAddressAction,
@@ -67,6 +68,7 @@ export default async function AddressesPage({ searchParams }: AddressesPageProps
       </div>
 
       {/* Notices */}
+      <ToastTrigger notice={params.notice} error={params.error} />
       {params.notice && (
         <div className="mt-5 rounded-2xl border border-gold/35 bg-gold/10 px-4 py-3 font-body text-sm text-gold">
           {params.notice}

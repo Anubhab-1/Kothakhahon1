@@ -222,6 +222,8 @@ model Book {
   tableOfContents String?
   soldCount       Int         @default(0)
   viewCount       Int         @default(0)
+  searchVector    String?     @default("")
+  coverBlurDataUrl String?
   author          Author?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
   genres          BookGenre[]
   createdAt       DateTime    @default(now())
@@ -473,4 +475,11 @@ model SearchQuery {
   updatedAt DateTime @updatedAt
 
   @@index([count])
+}
+
+model OrderIdempotency {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 }

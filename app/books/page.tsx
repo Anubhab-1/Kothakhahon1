@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import BooksCatalogClient from "@/components/books/BooksCatalogClient";
-import { getAllBooks } from "@/lib/content";
+import { getAllBooks, getFilteredCatalogBooks } from "@/lib/content";
 import {
   getEffectiveStockStatus,
   normalizeLowStockThreshold,
@@ -15,6 +15,10 @@ interface BooksPageProps {
     language?: string;
     author?: string;
     q?: string;
+    sort?: string;
+    price?: string;
+    inStock?: string;
+    page?: string;
   }>;
 }
 
@@ -85,13 +89,38 @@ export async function generateMetadata({ searchParams }: BooksPageProps): Promis
   };
 }
 
-export default async function BooksPage() {
-  const books = await getAllBooks();
-  const catalogBooks = books.map(mapCatalogBook);
+export default async function BooksPage({ searchParams }: BooksPageProps) {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+  const limit = 12;
+
+  const { items: paginatedBooks, totalCount } = await getFilteredCatalogBooks({
+    page,
+    limit,
+    q: params.q,
+    genre: params.genre,
+    author: params.author,
+    language: params.language,
+    inStock: params.inStock === "true",
+    price: params.price,
+    sort: params.sort,
+  });
+
+  const allBooks = await getAllBooks();
+
+  const catalogBooks = paginatedBooks.map(mapCatalogBook);
+  const allCatalogBooks = allBooks.map(mapCatalogBook);
+  const totalPages = Math.ceil(totalCount / limit);
 
   return (
     <Suspense fallback={<div className="mx-auto w-full max-w-7xl px-4 py-16 md:px-8" />}>
-      <BooksCatalogClient books={catalogBooks} />
+      <BooksCatalogClient
+        books={catalogBooks}
+        allBooks={allCatalogBooks}
+        currentPage={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+      />
     </Suspense>
   );
 }

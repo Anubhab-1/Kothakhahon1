@@ -22,3 +22,10 @@ export function formatINR(amount?: number) {
     maximumFractionDigits: 2,
   }).format(amount);
 }
+
+export function getCloudinaryBlurUrl(url?: string | null): string {
+  if (url && url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+    return url.replace("/upload/", "/upload/e_blur:1000,w_10/");
+  }
+  return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEzMyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMjIxZDE3Ii8+PC9zdmc+";
+}

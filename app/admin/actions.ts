@@ -429,6 +429,10 @@ export async function saveBookAction(formData: FormData) {
       });
     }
 
+    // Rebuild PostgreSQL search vector
+    const { updateBookSearchVector } = await import("@/lib/search");
+    await updateBookSearchVector(book.id);
+
     invalidateContentPresenceCache();
     revalidateStorefront();
     revalidatePath("/admin/books");

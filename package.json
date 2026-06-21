@@ -12,6 +12,7 @@
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "db:local:setup": "node scripts/postgres-dev.mjs setup",
     "db:local:start": "node scripts/postgres-dev.mjs start",
     "db:local:stop": "node scripts/postgres-dev.mjs stop",
@@ -40,6 +41,7 @@
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.2",
     "resend": "^6.9.4",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"
   },

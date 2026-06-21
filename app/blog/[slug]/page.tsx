@@ -10,7 +10,7 @@ interface BlogPostPageProps {
   }>;
 }
 
-export const revalidate = 60;
+export const revalidate = 3600; // 1 hour
 
 function mapPostToCard(post: Awaited<ReturnType<typeof getAllBlogPosts>>[number]): BlogPostCardView {
   return {

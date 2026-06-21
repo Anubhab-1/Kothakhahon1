@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import AuthorsIndexClient, {
   type AuthorIndexItem,
 } from "@/components/authors/AuthorsIndexClient";
-import { getAllAuthors, getAllBooks } from "@/lib/content";
+import { getAllAuthors, getAllBooks, getAuthorsCount } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Our Authors | Kothakhahon Editorial Desk",
@@ -14,8 +14,24 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-export default async function AuthorsPage() {
-  const [authors, books] = await Promise.all([getAllAuthors(), getAllBooks()]);
+interface AuthorsPageProps {
+  searchParams: Promise<{
+    page?: string;
+  }>;
+}
+
+export default async function AuthorsPage({ searchParams }: AuthorsPageProps) {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+  const limit = 24;
+
+  const [authors, books, totalCount] = await Promise.all([
+    getAllAuthors({ page, limit }),
+    getAllBooks(),
+    getAuthorsCount(),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / limit);
 
   const items: AuthorIndexItem[] = authors
     .map((author) => ({
@@ -28,5 +44,5 @@ export default async function AuthorsPage() {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return <AuthorsIndexClient authors={items} />;
+  return <AuthorsIndexClient authors={items} currentPage={page} totalPages={totalPages} />;
 }

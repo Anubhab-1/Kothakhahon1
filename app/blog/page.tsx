@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import BlogIndexClient from "@/components/blog/BlogIndexClient";
-import { getAllBlogPosts } from "@/lib/content";
+import { getAllBlogPosts, getBlogPostsCount } from "@/lib/content";
 import type { BlogPostCardView } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -24,6 +24,12 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
+interface BlogPageProps {
+  searchParams: Promise<{
+    page?: string;
+  }>;
+}
+
 function mapPostToCard(post: Awaited<ReturnType<typeof getAllBlogPosts>>[number]): BlogPostCardView {
   return {
     id: post._id,
@@ -39,7 +45,18 @@ function mapPostToCard(post: Awaited<ReturnType<typeof getAllBlogPosts>>[number]
   };
 }
 
-export default async function BlogPage() {
-  const posts = (await getAllBlogPosts()).map(mapPostToCard);
-  return <BlogIndexClient posts={posts} />;
+export default async function BlogPage({ searchParams }: BlogPageProps) {
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+  const limit = 9;
+
+  const [posts, totalCount] = await Promise.all([
+    getAllBlogPosts({ page, limit }),
+    getBlogPostsCount(),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / limit);
+  const mappedPosts = posts.map(mapPostToCard);
+
+  return <BlogIndexClient posts={mappedPosts} currentPage={page} totalPages={totalPages} />;
 }

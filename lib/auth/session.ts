@@ -5,7 +5,7 @@ import type { UserRole } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
 const SESSION_COOKIE = "kothakhahon_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
+export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 
 export interface AuthSession {
   userId: string;
@@ -14,6 +14,15 @@ export interface AuthSession {
   phone?: string;
   role: UserRole;
   expiresAt: number;
+}
+
+// Runtime validation of SESSION_SECRET on server start
+const secretToCheck = env.SESSION_SECRET || process.env.SESSION_SECRET;
+if (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "development") {
+  const isBuilding = process.env.NEXT_PHASE === "phase-production-build";
+  if (!isBuilding && (!secretToCheck || secretToCheck.length < 32)) {
+    throw new Error("SESSION_SECRET is missing or shorter than 32 characters. Server boot blocked for security.");
+  }
 }
 
 function getSessionSecret() {
@@ -90,16 +99,16 @@ export async function createSession(user: {
     fullName: user.fullName ?? undefined,
     phone: user.phone ?? undefined,
     role: user.role,
-    expiresAt: Date.now() + SESSION_TTL_MS,
+    expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
   };
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, encodeSession(session), {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: user.role === "ADMIN" ? "strict" : "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: new Date(session.expiresAt),
+    maxAge: 60 * 60 * 24 * 7,
   });
 }
 

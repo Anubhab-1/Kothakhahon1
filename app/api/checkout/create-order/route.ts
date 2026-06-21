@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { Prisma } from "@/generated/prisma/client";
 import {
   queueCashOnDeliveryOrderEmails,
   runEmailJobsAfterResponse,
@@ -66,13 +67,26 @@ function getRazorpayConfig() {
     keySecret: keySecret ?? "",
     publicKey,
   };
+}interface MappedBook {
+  bookId: string;
+  bookSlug: string;
+  bookTitle: string;
+  bookAuthor: string;
+  bookCoverUrl: string | null;
+  price: number;
+  stockQuantity: number;
+  stockStatus: string;
 }
 
-async function getAuthoritativePricedItems(items: z.infer<typeof requestSchema>["items"]) {
+async function getAuthoritativePricedItems(
+  items: z.infer<typeof requestSchema>["items"],
+  client: Prisma.TransactionClient | typeof db = db
+) {
   const requestedBookIds = Array.from(
     new Set(items.map((item) => item.bookId).filter(Boolean)),
   );
-  const books = await db.book.findMany({
+  const bookClient = (client as typeof db).book || db.book;
+  const books = await bookClient.findMany({
     where: {
       OR: [
         {
@@ -95,7 +109,7 @@ async function getAuthoritativePricedItems(items: z.infer<typeof requestSchema>[
       },
     },
   });
-  const bookMap = new Map(
+  const bookMap = new Map<string, MappedBook>(
     books.flatMap((book) => [
       [
         book.id,
@@ -160,6 +174,22 @@ async function getAuthoritativePricedItems(items: z.infer<typeof requestSchema>[
   };
 }
 
+class OrderFlowValidationError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = "OrderFlowValidationError";
+    this.status = status;
+  }
+}
+
+class IdempotencyConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "IdempotencyConflictError";
+  }
+}
+
 export async function POST(request: Request) {
   const clientId = getClientIdentifier(request);
   const rateLimit = await checkRateLimit({
@@ -187,85 +217,103 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid checkout payload." }, { status: 400 });
   }
 
-  const pricedResult = await getAuthoritativePricedItems(payload.items);
-  if (pricedResult.error) {
-    return NextResponse.json({ error: pricedResult.error }, { status: 400 });
-  }
-
   const session = await getSession();
   const normalizedEmail = payload.shippingAddress.email.toLowerCase();
 
-  // Check if email belongs to a registered user who is unverified
-  const registeredUser = await db.user.findUnique({
-    where: { email: normalizedEmail },
-    select: { emailVerifiedAt: true },
-  });
-  if (registeredUser && !registeredUser.emailVerifiedAt) {
-    return NextResponse.json(
-      {
-        error:
-          "Please verify your email address before placing an order. Check your inbox for the verification link or log in to resend it.",
-      },
-      { status: 400 },
-    );
-  }
-
-  const ownedBySession =
-    session?.role === "CUSTOMER" && session.email.toLowerCase() === normalizedEmail;
-
-  const subtotalAmount = pricedResult.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
-  const shippingQuote = getShippingQuote({
-    country: payload.shippingAddress.country,
-    subtotalAmount,
-    shippingMethod: payload.shippingAddress.shippingMethod,
-  });
-  const shippingAmount = shippingQuote.shippingAmount;
-
-  // ── Server-side coupon validation ───────────────────────────────────────
-  let couponDiscount = 0;
-  let validatedCoupon: { id: string; code: string; type: "percent" | "flat"; value: number } | null = null;
-
-  if (payload.couponId) {
-    const coupon = await db.coupon.findUnique({
-      where: { id: payload.couponId },
-      select: { id: true, code: true, type: true, value: true, minOrderAmount: true, maxUses: true, usedCount: true, expiresAt: true, isActive: true },
-    });
-
-    const couponValid =
-      coupon &&
-      coupon.isActive &&
-      (!coupon.expiresAt || coupon.expiresAt > new Date()) &&
-      (coupon.maxUses === null || coupon.usedCount < coupon.maxUses) &&
-      (coupon.minOrderAmount === null || subtotalAmount >= coupon.minOrderAmount);
-
-    if (couponValid) {
-      couponDiscount = calculateCouponDiscount({
-        type: coupon.type,
-        value: coupon.value,
-        subtotalAmount,
-      });
-      validatedCoupon = coupon;
-    }
-  }
-
-  const discountAmount = couponDiscount;
-  const totalAmount = Math.max(0, subtotalAmount + shippingAmount - discountAmount);
-
-  if (totalAmount <= 0) {
-    return NextResponse.json({ error: "Cart total is invalid." }, { status: 400 });
-  }
-
-  if (!shippingQuote.serviceable) {
-    return NextResponse.json({ error: shippingQuote.message }, { status: 400 });
-  }
-
   let order;
+  let totalAmountCalculated = 0;
   try {
-    order = await db.$transaction(async (tx) => {
-      const createdOrder = await tx.order.create({
+    const transactionResult = await db.$transaction(async (tx) => {
+      // 1. Idempotency Key check
+      const idempotencyKey = request.headers.get("idempotency-key");
+      if (idempotencyKey && tx.orderIdempotency) {
+        const existing = await tx.orderIdempotency.findUnique({
+          where: { key: idempotencyKey },
+        });
+        if (existing) {
+          throw new IdempotencyConflictError("Duplicate order request");
+        }
+        await tx.orderIdempotency.create({
+          data: {
+            key: idempotencyKey,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          },
+        });
+      }
+
+      // 2. Authoritative priced items (must query using tx!)
+      const pricedResult = await getAuthoritativePricedItems(payload.items, tx);
+      if (pricedResult.error) {
+        throw new OrderFlowValidationError(pricedResult.error);
+      }
+
+      // 3. User checks using tx
+      const userClient = tx.user || db.user;
+      const registeredUser = await userClient.findUnique({
+        where: { email: normalizedEmail },
+        select: { emailVerifiedAt: true },
+      });
+      if (registeredUser && !registeredUser.emailVerifiedAt) {
+        throw new OrderFlowValidationError(
+          "Please verify your email address before placing an order. Check your inbox for the verification link or log in to resend it."
+        );
+      }
+
+      const ownedBySession =
+        session?.role === "CUSTOMER" && session.email.toLowerCase() === normalizedEmail;
+
+      const subtotalAmount = pricedResult.items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+      const shippingQuote = getShippingQuote({
+        country: payload.shippingAddress.country,
+        subtotalAmount,
+        shippingMethod: payload.shippingAddress.shippingMethod,
+      });
+      const shippingAmount = shippingQuote.shippingAmount;
+
+      if (!shippingQuote.serviceable) {
+        throw new OrderFlowValidationError(shippingQuote.message);
+      }
+
+      let couponDiscount = 0;
+      let validatedCoupon: { id: string; code: string; type: "percent" | "flat"; value: number } | null = null;
+
+      const couponClient = tx.coupon || db.coupon;
+      if (payload.couponId) {
+        const coupon = await couponClient.findUnique({
+          where: { id: payload.couponId },
+          select: { id: true, code: true, type: true, value: true, minOrderAmount: true, maxUses: true, usedCount: true, expiresAt: true, isActive: true },
+        });
+
+        const couponValid =
+          coupon &&
+          coupon.isActive &&
+          (!coupon.expiresAt || coupon.expiresAt > new Date()) &&
+          (coupon.maxUses === null || coupon.usedCount < coupon.maxUses) &&
+          (coupon.minOrderAmount === null || subtotalAmount >= coupon.minOrderAmount);
+
+        if (couponValid) {
+          couponDiscount = calculateCouponDiscount({
+            type: coupon.type,
+            value: coupon.value,
+            subtotalAmount,
+          });
+          validatedCoupon = coupon;
+        }
+      }
+
+      const discountAmount = couponDiscount;
+      const totalAmount = Math.max(0, subtotalAmount + shippingAmount - discountAmount);
+
+      if (totalAmount <= 0) {
+        throw new OrderFlowValidationError("Cart total is invalid.");
+      }
+
+      // Create Order
+      const orderClient = tx.order || db.order;
+      const createdOrder = await orderClient.create({
         data: {
           userId: ownedBySession ? session.userId : null,
           status: payload.paymentMethod === "cod" ? "pending" : "payment_pending",
@@ -304,7 +352,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // Atomically record coupon usage and increment usedCount
+      // Record coupon usage
       if (validatedCoupon) {
         await consumeCouponForOrder(tx, {
           couponId: validatedCoupon.id,
@@ -314,13 +362,15 @@ export async function POST(request: Request) {
         });
       }
 
+      // Commit inventory if COD
       if (payload.paymentMethod === "cod") {
         await commitOrderInventory(tx, createdOrder.id);
       }
 
-      // Save the checkout address to the customer's saved addresses when requested.
+      // Save Address
+      const addressClient = tx.address || db.address;
       if (ownedBySession && payload.saveAddress) {
-        const addressExists = await tx.address.findFirst({
+        const addressExists = await addressClient.findFirst({
           where: {
             userId: session.userId,
             fullName: payload.shippingAddress.fullName,
@@ -335,11 +385,11 @@ export async function POST(request: Request) {
         });
 
         if (!addressExists) {
-          const existingCount = await tx.address.count({
+          const existingCount = await addressClient.count({
             where: { userId: session.userId },
           });
 
-          await tx.address.create({
+          await addressClient.create({
             data: {
               userId: session.userId,
               label: existingCount === 0 ? "Home" : "Other",
@@ -357,33 +407,45 @@ export async function POST(request: Request) {
         }
       }
 
-      // Clear user's DB cart if logged in and order owned by session
+      // Clear Cart
+      const cartClient = tx.cartItem || db.cartItem;
       if (ownedBySession) {
-        await tx.cartItem.deleteMany({
+        await cartClient.deleteMany({
           where: { userId: session.userId },
         });
       }
 
-      return createdOrder;
-    });
+      // Queue COD emails inside transaction if COD
+      if (payload.paymentMethod === "cod") {
+        await queueCashOnDeliveryOrderEmails(createdOrder.id, tx);
+      }
+
+      return { order: createdOrder, totalAmount };
+    }, { isolationLevel: "Serializable" });
+
+    order = transactionResult.order;
+    totalAmountCalculated = transactionResult.totalAmount;
   } catch (error) {
+    if (error instanceof IdempotencyConflictError) {
+      return NextResponse.json({ error: "Order is already processing or was created with this key." }, { status: 409 });
+    }
+    if (error instanceof OrderFlowValidationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     if (error instanceof InventoryAdjustmentError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-
     if (error instanceof CouponUsageError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
-
     throw error;
   }
 
   if (payload.paymentMethod === "cod") {
     try {
-      await queueCashOnDeliveryOrderEmails(order.id);
       runEmailJobsAfterResponse();
     } catch (error) {
-      console.error(error instanceof Error ? error.message : "COD email job enqueue failed.");
+      console.error(error instanceof Error ? error.message : "COD email job process failed.");
     }
 
     return NextResponse.json({
@@ -416,7 +478,7 @@ export async function POST(request: Request) {
     });
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(totalAmount * 100),
+      amount: Math.round(totalAmountCalculated * 100),
       currency: "INR",
       receipt: order.id.slice(0, 40),
       notes: {

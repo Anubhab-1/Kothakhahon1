@@ -12,7 +12,7 @@ interface AuthorPageProps {
   }>;
 }
 
-export const revalidate = 60;
+export const revalidate = 3600; // 1 hour
 
 function mapAuthor(author: NonNullable<Awaited<ReturnType<typeof getAuthorBySlug>>>): AuthorDetailItem {
   return {

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CatalogBook } from "@/lib/types";
 import { getStockStatusLabel, isBookAvailableForSale } from "@/lib/inventory";
-import { formatINR, cn } from "@/lib/utils";
+import { formatINR, cn, getCloudinaryBlurUrl } from "@/lib/utils";
 import TiltCard from "@/components/ui/TiltCard";
 import AddToCart from "@/components/ui/AddToCart";
 import DecorativeBookCover from "@/components/ui/DecorativeBookCover";
@@ -35,6 +35,8 @@ export default function CatalogBookCard({ book }: CatalogBookCardProps) {
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               className="object-cover transition duration-500 group-hover:scale-[1.04]"
+              placeholder="blur"
+              blurDataURL={getCloudinaryBlurUrl(book.coverImageUrl)}
             />
           ) : (
             <DecorativeBookCover

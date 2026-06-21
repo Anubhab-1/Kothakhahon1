@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { usePublicSession } from "@/components/auth/PublicSessionProvider";
+import { toast } from "sonner";
 
 const STORAGE_KEY = "kothakhahon_cart_v1";
 
@@ -187,6 +188,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       quantity: safeQuantity,
     });
 
+    toast.success(safeQuantity > 1 ? `Added ${safeQuantity} copies of "${item.title}" to cart` : `Added "${item.title}" to cart`);
+
     setItems((current) => {
       const existing = current.find((entry) => entry.bookId === nextItem.bookId);
       const newItems = existing
@@ -212,6 +215,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = useCallback((bookId: string) => {
     setItems((current) => {
+      const existing = current.find((entry) => entry.bookId === bookId);
+      if (existing) {
+        toast.info(`Removed "${existing.title}" from cart`);
+      }
       const newItems = current.filter((entry) => entry.bookId !== bookId);
       if (session?.id) {
         fetch(`/api/cart?bookId=${bookId}`, { method: "DELETE" })
@@ -224,6 +231,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const setQuantity = useCallback((bookId: string, quantity: number) => {
     const safeQuantity = Math.max(0, Math.floor(quantity));
     setItems((current) => {
+      const existing = current.find((entry) => entry.bookId === bookId);
+      if (existing) {
+        if (safeQuantity === 0) {
+          toast.info(`Removed "${existing.title}" from cart`);
+        } else {
+          toast.success(`Updated "${existing.title}" quantity to ${safeQuantity}`);
+        }
+      }
       const newItems = safeQuantity === 0
         ? current.filter((entry) => entry.bookId !== bookId)
         : current.map((entry) =>
@@ -243,6 +258,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [session?.id]);
 
   const clearCart = useCallback(() => {
+    toast.info("Cleared shopping cart");
     setItems([]);
     if (session?.id) {
       fetch("/api/cart", { method: "DELETE" })

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Book } from "@/lib/types";
-import { formatINR } from "@/lib/utils";
+import { formatINR, getCloudinaryBlurUrl } from "@/lib/utils";
 import TiltCard from "@/components/ui/TiltCard";
 import AddToCart from "@/components/ui/AddToCart";
 import DecorativeBookCover from "@/components/ui/DecorativeBookCover";
@@ -72,7 +72,7 @@ export default function BookCard({ book }: BookCardProps) {
                 sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                 className="object-cover transition duration-500 group-hover:scale-[1.04]"
                 placeholder="blur"
-                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEzMyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMjIxZDE3Ii8+PC9zdmc+"
+                blurDataURL={getCloudinaryBlurUrl(book.coverImageUrl)}
               />
             ) : (
               <DecorativeBookCover

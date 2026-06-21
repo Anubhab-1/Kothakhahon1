@@ -79,6 +79,9 @@ export async function checkRateLimit(options: RateLimitOptions): Promise<RateLim
   const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!redisUrl || !redisToken) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Upstash Redis is required in production but credentials are missing.");
+    }
     if (!loggedWarning) {
       logger.warn(
         "UPSTASH_REDIS_REST_URL and/or UPSTASH_REDIS_REST_TOKEN are not set. Falling back to in-memory rate limiting."

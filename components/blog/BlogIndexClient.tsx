@@ -6,9 +6,12 @@ import Image from "next/image";
 import { formatDisplayDate } from "@/lib/date";
 import { motion } from "@/components/ui/StaticMotion";
 import type { BlogPostCardView } from "@/lib/types";
+import Pagination from "@/components/ui/Pagination";
 
 interface BlogIndexClientProps {
   posts: BlogPostCardView[];
+  currentPage?: number;
+  totalPages?: number;
 }
 
 const containerVariants = {
@@ -27,7 +30,7 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-export default function BlogIndexClient({ posts }: BlogIndexClientProps) {
+export default function BlogIndexClient({ posts, currentPage, totalPages }: BlogIndexClientProps) {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const categories = useMemo(() => {
@@ -179,6 +182,15 @@ export default function BlogIndexClient({ posts }: BlogIndexClientProps) {
           </motion.div>
         )}
       </section>
+      {totalPages !== undefined && currentPage !== undefined && totalPages > 1 && (
+        <div className="mx-auto w-full max-w-7xl px-4 pb-16 md:px-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            baseUrl="/blog"
+          />
+        </div>
+      )}
     </div>
   );
 }

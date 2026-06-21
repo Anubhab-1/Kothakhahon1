@@ -104,6 +104,9 @@ describe("Integration Workflows", () => {
         },
         cartItem: {
           deleteMany: async () => ({})
+        },
+        emailJob: {
+          create: async () => ({})
         }
       };
 
@@ -191,6 +194,9 @@ describe("Integration Workflows", () => {
             id: "order-1",
             items: []
           })
+        },
+        emailJob: {
+          create: async () => ({})
         }
       } as unknown as Prisma.TransactionClient;
 

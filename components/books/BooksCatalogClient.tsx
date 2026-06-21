@@ -3,7 +3,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { Search, SlidersHorizontal, LayoutGrid, List, X } from "lucide-react";
 import { AnimatePresence, motion as Motion } from "framer-motion";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Pagination from "@/components/ui/Pagination";
 import type { CatalogBook } from "@/lib/types";
 import CatalogBookCard from "@/components/books/CatalogBookCard";
 import { motion } from "@/components/ui/StaticMotion";
@@ -16,6 +17,10 @@ import { formatINR, cn } from "@/lib/utils";
 
 interface BooksCatalogClientProps {
   books: CatalogBook[];
+  allBooks: CatalogBook[];
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
 }
 
 interface BooksCatalogStatefulProps extends BooksCatalogClientProps {
@@ -49,11 +54,7 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-function getComparableDate(dateValue?: string) {
-  if (!dateValue) return 0;
-  const parsed = Date.parse(dateValue);
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
+
 
 function formatSortLabel(sortOption: SortOption) {
   switch (sortOption) {
@@ -118,20 +119,14 @@ function parsePriceFilter(priceFilter?: string): PriceFilter {
   return "all";
 }
 
-function getVisiblePages(currentPage: number, totalPages: number) {
-  const pages: number[] = [];
-  const start = Math.max(1, currentPage - 2);
-  const end = Math.min(totalPages, currentPage + 2);
 
-  for (let page = start; page <= end; page += 1) {
-    pages.push(page);
-  }
-
-  return pages;
-}
 
 function BooksCatalogStateful({
   books,
+  allBooks,
+  currentPage,
+  totalPages,
+  totalCount,
   initialSearchTerm,
   initialGenre,
   initialSort,
@@ -140,7 +135,9 @@ function BooksCatalogStateful({
   initialLanguage,
   initialInStock,
 }: BooksCatalogStatefulProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [selectedGenre, setSelectedGenre] = useState(initialGenre);
   const [selectedAuthor, setSelectedAuthor] = useState(initialAuthor);
   const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage);
@@ -148,13 +145,49 @@ function BooksCatalogStateful({
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState<SortOption>(initialSort);
   const [priceFilter, setPriceFilter] = useState<PriceFilter>(initialPriceFilter);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  // Sync state back to URL query parameters
+  const setCurrentPage = (page: number) => {
+    const params = new URLSearchParams(window.location.search);
+    if (page === 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(page));
+    }
+    router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Sync state back to URL query parameters via Next.js router
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const currentParams = new URLSearchParams(window.location.search);
+    const q = currentParams.get("q") || "";
+    const genre = currentParams.get("genre") || "all";
+    const author = currentParams.get("author") || "all";
+    const language = currentParams.get("language") || "all";
+    const inStock = currentParams.get("inStock") === "true";
+    const price = currentParams.get("price") || "all";
+    const sort = currentParams.get("sort") || "newest";
+
+    const filterChanged =
+      debouncedSearchTerm.trim() !== q.trim() ||
+      selectedGenre !== genre ||
+      selectedAuthor !== author ||
+      selectedLanguage !== language ||
+      inStockOnly !== inStock ||
+      priceFilter !== price ||
+      sortOption !== sort;
+
     const params = new URLSearchParams();
-    if (searchTerm.trim()) params.set("q", searchTerm.trim());
+    if (debouncedSearchTerm.trim()) params.set("q", debouncedSearchTerm.trim());
     if (selectedGenre !== "all") params.set("genre", selectedGenre);
     if (selectedAuthor !== "all") params.set("author", selectedAuthor);
     if (selectedLanguage !== "all") params.set("language", selectedLanguage);
@@ -162,13 +195,15 @@ function BooksCatalogStateful({
     if (priceFilter !== "all") params.set("price", priceFilter);
     if (sortOption !== "newest") params.set("sort", sortOption);
 
+    if (!filterChanged && currentPage > 1) {
+      params.set("page", String(currentPage));
+    }
+
     const queryString = params.toString();
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
 
-    window.history.replaceState(null, "", newUrl);
-  }, [searchTerm, selectedGenre, selectedAuthor, selectedLanguage, inStockOnly, priceFilter, sortOption]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+    router.replace(newUrl, { scroll: false });
+  }, [debouncedSearchTerm, selectedGenre, selectedAuthor, selectedLanguage, inStockOnly, priceFilter, sortOption, currentPage, router]);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -183,54 +218,54 @@ function BooksCatalogStateful({
 
   const genres = useMemo(() => {
     const genreSet = new Set<string>();
-    books.forEach((book) => {
+    allBooks.forEach((book) => {
       book.genreNames.forEach((genre) => genreSet.add(genre));
     });
     return Array.from(genreSet).sort((a, b) => a.localeCompare(b));
-  }, [books]);
+  }, [allBooks]);
 
   const authors = useMemo(() => {
     const authorSet = new Set<string>();
-    books.forEach((book) => {
+    allBooks.forEach((book) => {
       if (book.authorName) authorSet.add(book.authorName);
     });
     return Array.from(authorSet).sort((a, b) => a.localeCompare(b));
-  }, [books]);
+  }, [allBooks]);
 
   const genreCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    books.forEach((book) => {
+    allBooks.forEach((book) => {
       book.genreNames.forEach((genre) => {
         counts[genre] = (counts[genre] ?? 0) + 1;
       });
     });
     return counts;
-  }, [books]);
+  }, [allBooks]);
 
   const authorCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    books.forEach((book) => {
+    allBooks.forEach((book) => {
       if (book.authorName) {
         counts[book.authorName] = (counts[book.authorName] ?? 0) + 1;
       }
     });
     return counts;
-  }, [books]);
+  }, [allBooks]);
 
   const languageCounts = useMemo(() => {
     const counts: Record<string, number> = { Bengali: 0, English: 0 };
-    books.forEach((book) => {
+    allBooks.forEach((book) => {
       if (book.language) {
         const lang = book.language.toLowerCase() === "english" ? "English" : "Bengali";
         counts[lang] = (counts[lang] ?? 0) + 1;
       }
     });
     return counts;
-  }, [books]);
+  }, [allBooks]);
 
   const priceCounts = useMemo(() => {
-    const counts: Record<PriceFilter, number> = { all: books.length, "under-400": 0, "400-600": 0, "above-600": 0 };
-    books.forEach((book) => {
+    const counts: Record<PriceFilter, number> = { all: allBooks.length, "under-400": 0, "400-600": 0, "above-600": 0 };
+    allBooks.forEach((book) => {
       if (typeof book.price === "number") {
         if (book.price < 400) {
           counts["under-400"]++;
@@ -242,84 +277,12 @@ function BooksCatalogStateful({
       }
     });
     return counts;
-  }, [books]);
+  }, [allBooks]);
 
   const inStockCount = useMemo(() => {
-    return books.filter((book) => book.stockStatus !== "out_of_stock").length;
-  }, [books]);
+    return allBooks.filter((book) => book.stockStatus !== "out_of_stock").length;
+  }, [allBooks]);
 
-  const filteredBooks = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-
-    const filtered = books.filter((book) => {
-      const inGenre =
-        selectedGenre === "all" || book.genreNames.some((genre) => genre === selectedGenre);
-      if (!inGenre) {
-        return false;
-      }
-
-      const inAuthor = selectedAuthor === "all" || book.authorName === selectedAuthor;
-      if (!inAuthor) {
-        return false;
-      }
-
-      const inLanguage =
-        selectedLanguage === "all" ||
-        (book.language?.toLowerCase() === selectedLanguage.toLowerCase());
-      if (!inLanguage) {
-        return false;
-      }
-
-      const inStock = !inStockOnly || book.stockStatus !== "out_of_stock";
-      if (!inStock) {
-        return false;
-      }
-
-      const inPriceBand =
-        priceFilter === "all" ||
-        (priceFilter === "under-400" && typeof book.price === "number" && book.price < 400) ||
-        (priceFilter === "400-600" &&
-          typeof book.price === "number" &&
-          book.price >= 400 &&
-          book.price <= 600) ||
-        (priceFilter === "above-600" && typeof book.price === "number" && book.price > 600);
-      if (!inPriceBand) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-      const searchable = `${book.title} ${book.authorName} ${book.genreNames.join(" ")}`.toLowerCase();
-      return searchable.includes(query);
-    });
-
-    filtered.sort((a, b) => {
-      switch (sortOption) {
-        case "title-az":
-          return a.title.localeCompare(b.title);
-        case "price-low":
-          return (a.price ?? Number.POSITIVE_INFINITY) - (b.price ?? Number.POSITIVE_INFINITY);
-        case "price-high":
-          return (b.price ?? 0) - (a.price ?? 0);
-        case "oldest":
-          return getComparableDate(a.publicationDate) - getComparableDate(b.publicationDate);
-        case "best-selling":
-          return (b.soldCount ?? 0) - (a.soldCount ?? 0);
-        case "highest-rated":
-          return (b.averageRating ?? 0) - (a.averageRating ?? 0);
-        case "newest":
-        default:
-          return getComparableDate(b.publicationDate) - getComparableDate(a.publicationDate);
-      }
-    });
-
-    return filtered;
-  }, [books, priceFilter, searchTerm, selectedGenre, selectedAuthor, selectedLanguage, inStockOnly, sortOption]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / PAGE_SIZE));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
   const hasActiveFilters =
     selectedGenre !== "all" ||
     selectedAuthor !== "all" ||
@@ -329,14 +292,10 @@ function BooksCatalogStateful({
     priceFilter !== "all" ||
     Boolean(searchTerm.trim());
 
-  const visibleBooks = useMemo(() => {
-    const start = (safeCurrentPage - 1) * PAGE_SIZE;
-    return filteredBooks.slice(start, start + PAGE_SIZE);
-  }, [filteredBooks, safeCurrentPage]);
-
-  const visiblePages = getVisiblePages(safeCurrentPage, totalPages);
-  const showingFrom = filteredBooks.length === 0 ? 0 : (safeCurrentPage - 1) * PAGE_SIZE + 1;
-  const showingTo = filteredBooks.length === 0 ? 0 : showingFrom + visibleBooks.length - 1;
+  const visibleBooks = books;
+  const safeCurrentPage = currentPage;
+  const showingFrom = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const showingTo = totalCount === 0 ? 0 : showingFrom + visibleBooks.length - 1;
 
   return (
 
@@ -686,7 +645,7 @@ function BooksCatalogStateful({
                       onClick={() => setIsFiltersOpen(false)}
                       className="fx-button inline-flex flex-1 items-center justify-center rounded-full border border-gold bg-gold px-4 py-2.5 font-mono text-xs font-medium tracking-widest text-void shadow-lg transition hover:bg-ivory hover:border-ivory cursor-pointer"
                     >
-                      SHOW {filteredBooks.length} BOOKS
+                      SHOW {totalCount} BOOKS
                     </button>
                   </div>
                 </Motion.aside>
@@ -697,7 +656,7 @@ function BooksCatalogStateful({
         </div>
       </section>
 
-      {filteredBooks.length === 0 ? (
+      {totalCount === 0 ? (
         <div className="mt-10 rounded-2xl border border-smoke bg-obsidian p-8 text-center">
           <h2 className="font-title text-3xl text-ivory">No books found</h2>
           <p className="mt-2 font-body text-base text-stone">
@@ -726,7 +685,7 @@ function BooksCatalogStateful({
             <div>
               <p className="font-ui text-[10px] tracking-[0.16em] text-gold">CATALOG VIEW</p>
               <p className="mt-1 font-body text-sm text-parchment">
-                Showing {showingFrom}-{showingTo} of {filteredBooks.length} titles
+                Showing {showingFrom}-{showingTo} of {totalCount} titles
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -871,44 +830,20 @@ function BooksCatalogStateful({
             </motion.div>
           )}
 
-          {totalPages > 1 ? (
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                disabled={safeCurrentPage === 1}
-                onClick={() =>
-                  setCurrentPage((page) => Math.max(1, Math.min(page, totalPages) - 1))
-                }
-                className="fx-button rounded-md border border-smoke px-3 py-2 font-ui text-[10px] tracking-[0.12em] text-parchment transition hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-50 sm:text-[11px]"
-              >
-                PREV
-              </button>
-
-              {visiblePages.map((page) => (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`fx-button rounded-md border px-3 py-2 font-ui text-[10px] tracking-[0.12em] transition sm:text-[11px] ${
-                    safeCurrentPage === page
-                      ? "border-gold bg-gold text-void"
-                      : "border-smoke text-parchment hover:border-gold hover:text-gold"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                type="button"
-                disabled={safeCurrentPage === totalPages}
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                className="fx-button rounded-md border border-smoke px-3 py-2 font-ui text-[10px] tracking-[0.12em] text-parchment transition hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-50 sm:text-[11px]"
-              >
-                NEXT
-              </button>
-            </div>
-          ) : null}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            baseUrl="/books"
+            searchParams={{
+              q: searchTerm || undefined,
+              genre: selectedGenre !== "all" ? selectedGenre : undefined,
+              author: selectedAuthor !== "all" ? selectedAuthor : undefined,
+              language: selectedLanguage !== "all" ? selectedLanguage : undefined,
+              inStock: inStockOnly ? "true" : undefined,
+              price: priceFilter !== "all" ? priceFilter : undefined,
+              sort: sortOption !== "newest" ? sortOption : undefined,
+            }}
+          />
         </>
       )}
     </div>
@@ -917,6 +852,10 @@ function BooksCatalogStateful({
 
 export default function BooksCatalogClient({
   books,
+  allBooks,
+  currentPage,
+  totalPages,
+  totalCount,
 }: BooksCatalogClientProps) {
   const searchParams = useSearchParams();
   const paramsKey = searchParams.toString();
@@ -925,6 +864,10 @@ export default function BooksCatalogClient({
     <BooksCatalogStateful
       key={paramsKey}
       books={books}
+      allBooks={allBooks}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      totalCount={totalCount}
       initialSearchTerm={(searchParams.get("q") ?? "").trim()}
       initialGenre={searchParams.get("genre")?.trim() || "all"}
       initialSort={parseSortOption(searchParams.get("sort") ?? undefined)}

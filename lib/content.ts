@@ -569,7 +569,7 @@ function mapSettingsRecord(settings: SiteSettingsRecord, featuredBooks: Book[]):
   };
 }
 
-async function hasDatabaseContent() {
+export async function hasDatabaseContent() {
   if (
     contentPresenceCache &&
     Date.now() - contentPresenceCache.checkedAt < CONTENT_PRESENCE_TTL_MS
@@ -577,19 +577,24 @@ async function hasDatabaseContent() {
     return contentPresenceCache.hasContent;
   }
 
-  const [bookCount, authorCount, postCount] = await Promise.all([
-    db.book.count(),
-    db.author.count(),
-    db.blogPost.count(),
-  ]);
+  try {
+    const [bookCount, authorCount, postCount] = await Promise.all([
+      db.book.count(),
+      db.author.count(),
+      db.blogPost.count(),
+    ]);
 
-  const hasContent = bookCount + authorCount + postCount > 0;
-  contentPresenceCache = {
-    checkedAt: Date.now(),
-    hasContent,
-  };
+    const hasContent = bookCount + authorCount + postCount > 0;
+    contentPresenceCache = {
+      checkedAt: Date.now(),
+      hasContent,
+    };
 
-  return hasContent;
+    return hasContent;
+  } catch (error) {
+    console.warn("Database connection check failed, using seed data:", error instanceof Error ? error.message : String(error));
+    return false;
+  }
 }
 
 export function invalidateContentPresenceCache() {
@@ -690,17 +695,148 @@ export async function getFeaturedBooks() {
   return books.map(mapBookRecord);
 }
 
-export async function getAllBooks() {
+export async function getAllBooks(options?: { page?: number; limit?: number }) {
+  const page = options?.page;
+  const limit = options?.limit;
   if (!(await hasDatabaseContent())) {
-    return getSeedAllBooks();
+    const all = await getSeedAllBooks();
+    if (page !== undefined && limit !== undefined) {
+      const skip = (page - 1) * limit;
+      return all.slice(skip, skip + limit);
+    }
+    return all;
   }
 
   const books = await db.book.findMany({
     include: bookInclude,
     orderBy: [{ publicationDate: "desc" }, { createdAt: "desc" }],
+    skip: page !== undefined && limit !== undefined ? (page - 1) * limit : undefined,
+    take: limit !== undefined ? limit : undefined,
   });
-
   return books.map(mapBookRecord);
+}
+
+export async function getBooksCount() {
+  if (!(await hasDatabaseContent())) {
+    return seedBooks.length;
+  }
+  return db.book.count();
+}
+
+export async function getFilteredCatalogBooks(options: {
+  page?: number;
+  limit?: number;
+  q?: string;
+  genre?: string;
+  author?: string;
+  language?: string;
+  inStock?: boolean;
+  price?: string;
+  sort?: string;
+}) {
+  const page = options.page ?? 1;
+  const limit = options.limit ?? 12;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.BookWhereInput = {};
+
+  if (options.genre && options.genre !== "all") {
+    where.genres = {
+      some: {
+        genre: {
+          slug: options.genre,
+        },
+      },
+    };
+  }
+
+  if (options.author && options.author !== "all") {
+    where.author = {
+      slug: options.author,
+    };
+  }
+
+  if (options.language && options.language !== "all") {
+    where.language = {
+      equals: options.language,
+      mode: "insensitive",
+    };
+  }
+
+  if (options.inStock) {
+    where.stockStatus = {
+      not: "out_of_stock",
+    };
+  }
+
+  if (options.price && options.price !== "all") {
+    if (options.price === "under-400") {
+      where.price = { lt: 400 };
+    } else if (options.price === "400-600") {
+      where.price = { gte: 400, lte: 600 };
+    } else if (options.price === "above-600") {
+      where.price = { gt: 600 };
+    }
+  }
+
+  let orderBy: Prisma.BookOrderByWithRelationInput[] = [{ publicationDate: "desc" }, { createdAt: "desc" }];
+  if (options.sort) {
+    if (options.sort === "oldest") {
+      orderBy = [{ publicationDate: "asc" }, { createdAt: "asc" }];
+    } else if (options.sort === "price-low") {
+      orderBy = [{ price: "asc" }];
+    } else if (options.sort === "price-high") {
+      orderBy = [{ price: "desc" }];
+    } else if (options.sort === "title-az") {
+      orderBy = [{ title: "asc" }];
+    } else if (options.sort === "best-selling") {
+      orderBy = [{ soldCount: "desc" }];
+    } else if (options.sort === "highest-rated") {
+      orderBy = [{ averageRating: "desc" }];
+    }
+  }
+
+  if (options.q && options.q.trim()) {
+    const ilikeQuery = `%${options.q}%`;
+    const rawBooks = await db.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "Book"
+      WHERE "searchVector" @@ plainto_tsquery('english', ${options.q})
+         OR "searchVector" ILIKE ${ilikeQuery}
+      ORDER BY ts_rank(to_tsvector('english', coalesce("searchVector", '')), plainto_tsquery('english', ${options.q})) DESC
+    `;
+    const searchIds = rawBooks.map((b) => b.id);
+    if (searchIds.length === 0) {
+      return { items: [], totalCount: 0 };
+    }
+
+    where.id = { in: searchIds };
+
+    const totalCount = await db.book.count({ where });
+
+    const books = await db.book.findMany({
+      where,
+      include: bookInclude,
+      skip,
+      take: limit,
+    });
+
+    const sortedBooks = searchIds
+      .map((id) => books.find((b) => b.id === id))
+      .filter((b): b is NonNullable<typeof b> => !!b)
+      .map(mapBookRecord);
+
+    return { items: sortedBooks, totalCount };
+  } else {
+    const totalCount = await db.book.count({ where });
+    const books = await db.book.findMany({
+      where,
+      include: bookInclude,
+      orderBy,
+      skip,
+      take: limit,
+    });
+    return { items: books.map(mapBookRecord), totalCount };
+  }
 }
 
 export async function getBookBySlug(slug: string) {
@@ -747,17 +883,32 @@ export async function getRelatedBooks(slug: string, authorId: string) {
     .slice(0, 6);
 }
 
-export async function getAllBlogPosts() {
+export async function getAllBlogPosts(options?: { page?: number; limit?: number }) {
+  const page = options?.page;
+  const limit = options?.limit;
   if (!(await hasDatabaseContent())) {
-    return getSeedAllBlogPosts();
+    const all = await getSeedAllBlogPosts();
+    if (page !== undefined && limit !== undefined) {
+      const skip = (page - 1) * limit;
+      return all.slice(skip, skip + limit);
+    }
+    return all;
   }
 
   const posts = await db.blogPost.findMany({
     include: postInclude,
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    skip: page !== undefined && limit !== undefined ? (page - 1) * limit : undefined,
+    take: limit !== undefined ? limit : undefined,
   });
-
   return posts.map(mapBlogPostRecord);
+}
+
+export async function getBlogPostsCount() {
+  if (!(await hasDatabaseContent())) {
+    return seedBlogPosts.length;
+  }
+  return db.blogPost.count();
 }
 
 export async function getBlogPostBySlug(slug: string) {
@@ -789,9 +940,16 @@ export async function getLatestBlogPosts() {
   return posts.map(mapBlogPostRecord);
 }
 
-export async function getAllAuthors() {
+export async function getAllAuthors(options?: { page?: number; limit?: number }) {
+  const page = options?.page;
+  const limit = options?.limit;
   if (!(await hasDatabaseContent())) {
-    return getSeedAllAuthors();
+    const all = await getSeedAllAuthors();
+    if (page !== undefined && limit !== undefined) {
+      const skip = (page - 1) * limit;
+      return all.slice(skip, skip + limit);
+    }
+    return all;
   }
 
   const authors = await db.author.findMany({
@@ -799,9 +957,17 @@ export async function getAllAuthors() {
     orderBy: {
       name: "asc",
     },
+    skip: page !== undefined && limit !== undefined ? (page - 1) * limit : undefined,
+    take: limit !== undefined ? limit : undefined,
   });
-
   return authors.map(mapAuthorRecord);
+}
+
+export async function getAuthorsCount() {
+  if (!(await hasDatabaseContent())) {
+    return seedAuthors.length;
+  }
+  return db.author.count();
 }
 
 export async function getAuthorBySlug(slug: string) {

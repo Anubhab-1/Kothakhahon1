@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import DecorativeBookCover from "@/components/ui/DecorativeBookCover";
+import { getCloudinaryBlurUrl } from "@/lib/utils";
 
 interface TiltedBookCoverProps {
   title: string;
@@ -25,6 +26,8 @@ export default function TiltedBookCover({
             fill
             sizes="(max-width: 768px) 80vw, 340px"
             className="object-cover"
+            placeholder="blur"
+            blurDataURL={getCloudinaryBlurUrl(coverImageUrl)}
           />
         ) : (
           <DecorativeBookCover

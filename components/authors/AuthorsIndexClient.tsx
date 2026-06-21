@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "@/components/ui/StaticMotion";
+import Pagination from "@/components/ui/Pagination";
 
 export interface AuthorIndexItem {
   id: string;
@@ -16,6 +17,8 @@ export interface AuthorIndexItem {
 
 interface AuthorsIndexClientProps {
   authors: AuthorIndexItem[];
+  currentPage?: number;
+  totalPages?: number;
 }
 
 function normalizeLetter(value: string) {
@@ -23,7 +26,7 @@ function normalizeLetter(value: string) {
   return /^[A-Z]$/.test(first) ? first : "#";
 }
 
-export default function AuthorsIndexClient({ authors }: AuthorsIndexClientProps) {
+export default function AuthorsIndexClient({ authors, currentPage, totalPages }: AuthorsIndexClientProps) {
   const [selectedLetter, setSelectedLetter] = useState("ALL");
 
   const letters = useMemo(() => {
@@ -185,6 +188,13 @@ export default function AuthorsIndexClient({ authors }: AuthorsIndexClientProps)
                 ))}
               </motion.div>
             </div>
+          )}
+          {totalPages !== undefined && currentPage !== undefined && totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              baseUrl="/authors"
+            />
           )}
         </div>
       ) : (
