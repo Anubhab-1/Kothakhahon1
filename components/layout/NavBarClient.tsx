@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Heart } from "lucide-react";
+import { Menu, X, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BrandLogo from "@/components/layout/BrandLogo";
 import CatalogSearchForm from "@/components/layout/CatalogSearchForm";
@@ -96,10 +96,13 @@ export default function NavBarClient() {
               {user ? (
                 <Link
                   href={accountHref}
-                  className="fx-button rounded-full border border-smoke px-4 py-2 text-right transition hover:border-gold hover:text-gold"
+                  className="fx-button flex items-center gap-2 rounded-full border border-smoke px-4 py-2 font-ui text-[10px] tracking-[0.14em] text-parchment transition hover:border-gold hover:text-gold"
+                  title={`${accountLabel}: ${accountSummary}`}
                 >
-                  <p className="font-ui text-[10px] tracking-[0.14em] text-gold">{accountLabel}</p>
-                  <p className="max-w-[11rem] truncate font-body text-sm text-parchment">{accountSummary}</p>
+                  <User className="h-3.5 w-3.5 text-gold/80" />
+                  <span className="text-gold font-semibold">{accountLabel}</span>
+                  <span className="h-3 w-[1px] bg-smoke/40" />
+                  <span className="max-w-[7rem] truncate text-[9px] tracking-normal font-sans text-stone">{accountSummary}</span>
                 </Link>
               ) : (
                 <Link
