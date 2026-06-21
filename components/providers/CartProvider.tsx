@@ -107,6 +107,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (stored) {
       setItems(parseStoredItems(stored));
     }
+    const owner = window.localStorage.getItem(STORAGE_KEY + "_owner");
+    if (!owner) {
+      window.localStorage.setItem(STORAGE_KEY + "_owner", "guest");
+    }
     setIsHydrated(true);
   }, []);
 
@@ -123,32 +127,50 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     if (session?.id) {
       if (session.id !== syncedUserId) {
-        const mergeCart = async () => {
+        const syncCart = async () => {
           try {
-            const res = await fetch("/api/cart", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                items: items.map((i) => ({ bookId: i.bookId, quantity: i.quantity })),
-              }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.items) {
-                setItems(data.items);
+            const storedOwner = window.localStorage.getItem(STORAGE_KEY + "_owner");
+            
+            // If it was a guest cart and has items, merge it
+            if (storedOwner !== session.id && storedOwner === "guest" && items.length > 0) {
+              const res = await fetch("/api/cart", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  items: items.map((i) => ({ bookId: i.bookId, quantity: i.quantity })),
+                }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.items) {
+                  setItems(data.items);
+                }
+              }
+            } else {
+              // Otherwise, fetch the DB cart (source of truth) and update the local state
+              const res = await fetch("/api/cart");
+              if (res.ok) {
+                const data = await res.json();
+                if (data.items) {
+                  setItems(data.items);
+                }
               }
             }
+            
+            // Mark as synced with this user
+            window.localStorage.setItem(STORAGE_KEY + "_owner", session.id);
             setSyncedUserId(session.id);
           } catch (error) {
             console.error("Cart sync failed:", error);
           }
         };
-        void mergeCart();
+        void syncCart();
       }
     } else {
       if (syncedUserId !== null) {
         setSyncedUserId(null);
         setItems([]);
+        window.localStorage.setItem(STORAGE_KEY + "_owner", "guest");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

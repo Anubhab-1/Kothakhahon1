@@ -11,6 +11,21 @@ jobs:
     name: Lint, Test & Build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: kothakhahon_dev
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,6 +42,16 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
+      - name: Push Database Schema
+        run: npx prisma db push
+        env:
+          DATABASE_URL: postgresql://postgres@localhost:54329/kothakhahon_dev?schema=public
+
+      - name: Seed Database Content
+        run: npm run content:bootstrap
+        env:
+          DATABASE_URL: postgresql://postgres@localhost:54329/kothakhahon_dev?schema=public
+
       - name: Check Linting
         run: npm run lint
 
@@ -34,12 +59,13 @@ jobs:
         run: npm test
         env:
           NODE_ENV: test
+          DATABASE_URL: postgresql://postgres@localhost:54329/kothakhahon_dev?schema=public
           SESSION_SECRET: ci-secret-key-12345-only-for-tests
 
       - name: Verify Production Compilation
         run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
-          DATABASE_URL: postgresql://postgres@localhost:5432/dummy
-          DIRECT_URL: postgresql://postgres@localhost:5432/dummy
+          DATABASE_URL: postgresql://postgres@localhost:54329/kothakhahon_dev?schema=public
+          DIRECT_URL: postgresql://postgres@localhost:54329/kothakhahon_dev?schema=public
           SESSION_SECRET: build-secret-key-12345-only-for-builds
