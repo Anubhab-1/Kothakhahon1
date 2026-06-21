@@ -24,6 +24,8 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: z.string().optional(),
   ADMIN_NOTIFICATION_EMAIL: z.string().optional(),
   EMAIL_JOB_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse({
@@ -42,6 +44,8 @@ const parsedEnv = envSchema.parse({
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   ADMIN_NOTIFICATION_EMAIL: process.env.ADMIN_NOTIFICATION_EMAIL,
   EMAIL_JOB_SECRET: process.env.EMAIL_JOB_SECRET,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
 });
 
 function normalizeSiteUrl(value: string) {
@@ -176,6 +180,16 @@ export function getLaunchReadiness() {
         ? "Protected email job processor secret is configured."
         : "Local development can process queued email jobs without an extra shared secret."
       : "EMAIL_JOB_SECRET is missing. Configure it before exposing the background email processor in production.",
+  });
+
+  const googleReady = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+  items.push({
+    key: "google-auth",
+    label: "Google Sign-In",
+    status: googleReady ? "ready" : "warning",
+    detail: googleReady
+      ? "Google Client ID and Client Secret are configured."
+      : "Google Sign-In credentials are missing. Users can only sign in via email/password.",
   });
 
   return items;
