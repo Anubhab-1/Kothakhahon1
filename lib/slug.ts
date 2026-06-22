@@ -1,7 +1,7 @@
 export function slugify(value: string) {
   return value
     .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
+    .replace(/[^\p{L}\p{M}\p{N}\s-]/gu, "")
     .trim()
     .toLowerCase()
     .replace(/[-\s]+/g, "-")
