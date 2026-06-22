@@ -151,13 +151,13 @@ export default function HomePageClient({
                 href="/books"
                 className="rounded-full bg-gradient-to-r from-[#DFB362] to-[#B98E3A] px-9 py-3.5 font-title text-lg font-medium text-[#16130D] shadow-xl transition-all duration-300 hover:brightness-110"
               >
-                Browse The Catalog
+                Explore the Archive
               </Link>
               <Link
                 href="/books?sort=newest"
                 className="rounded-full border border-smoke/70 bg-transparent px-9 py-3.5 font-title text-lg font-medium text-parchment hover:border-gold hover:text-gold transition duration-200"
               >
-                Shop New Releases
+                Discover New Arrivals
               </Link>
             </div>
 
@@ -196,7 +196,7 @@ export default function HomePageClient({
           ) : (
             <div className="col-span-full rounded-xl border border-smoke bg-obsidian p-6">
               <p className="font-body text-base text-stone">
-                Featured editions will appear here as new titles are added to the list.
+                The editorial team is currently binding new selections for this shelf.
               </p>
             </div>
           )}
@@ -421,8 +421,8 @@ export default function HomePageClient({
           <SectionHeader
             align="center"
             eyebrow="READER CLUB"
-            title="Get New Releases Before Everyone Else"
-            description="Receive launch updates, essay drops, and early access to featured titles."
+            title="Dispatches from the Editorial Desk"
+            description="Receive quiet updates on new prints, author essays, and early access to limited editions—sent only when we have something meaningful to say."
             className="mx-auto max-w-3xl"
           />
           <div className="mt-8 flex justify-center">

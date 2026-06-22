@@ -52,7 +52,7 @@ export default function AuthorsIndexClient({ authors, currentPage, totalPages }:
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-16 md:px-8">
       <p className="font-ui text-xs tracking-[0.16em] text-gold">AUTHORS</p>
-      <h1 className="mt-3 text-safe font-title text-5xl text-ivory md:text-6xl">Writers In The Kothakhahon List</h1>
+      <h1 className="mt-3 text-safe font-title text-5xl text-ivory md:text-6xl">The Voices We Champion</h1>
       <p className="mt-3 max-w-3xl font-body text-lg text-stone">
         Browse the authors shaping the catalog. Each profile connects biography, books, and the editorial context around the work.
       </p>
@@ -199,7 +199,7 @@ export default function AuthorsIndexClient({ authors, currentPage, totalPages }:
         </div>
       ) : (
         <div className="mt-8 rounded-xl border border-smoke bg-obsidian p-8 text-center">
-          <p className="font-body text-lg text-stone">No author profiles match this letter yet.</p>
+          <p className="font-body text-lg text-stone">The archive is currently empty for this letter.</p>
         </div>
       )}
     </div>

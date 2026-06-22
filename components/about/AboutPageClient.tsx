@@ -84,7 +84,7 @@ export default function AboutPageClient() {
             ABOUT THE PUBLISHER
           </motion.p>
           <motion.h1 variants={heroLine} className="text-safe font-title text-6xl text-ivory md:text-8xl">
-            About Kothakhahon
+            The Press & Its Purpose
           </motion.h1>
           <motion.p variants={heroLine} className="max-w-3xl font-body text-xl text-parchment/90">
             We publish books that remain useful, discussable, and re-readable long after release.
@@ -181,7 +181,7 @@ export default function AboutPageClient() {
         transition={{ duration: 0.45 }}
         className="mx-auto w-full max-w-7xl px-4 pb-24 md:px-8"
       >
-        <SectionHeader eyebrow="THE TEAM" title="People Behind The Publishing Desk" />
+        <SectionHeader eyebrow="THE TEAM" title="The Editorial Board" />
         <div className="mt-8 grid gap-5 md:grid-cols-2">
           {teamMembers.map((member, index) => (
             <motion.article
