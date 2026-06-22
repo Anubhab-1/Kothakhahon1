@@ -83,6 +83,7 @@ Admin accounts are redirected to `/admin`, and reader accounts are redirected to
 - The admin dashboard includes a launch-readiness panel that flags missing domain, managed database, payment, upload, and email-sender configuration.
 - Local development now runs against the repo-local PostgreSQL instance on port `54329` by default.
 - Before launch, move `DATABASE_URL` to Neon or another managed Postgres instance and set the real production domain.
+- If deploying to Vercel with Neon Postgres, ensure `DATABASE_URL` uses the pooled connection string (`?pgbouncer=true`) and `DIRECT_URL` uses the direct connection string for Prisma migrations.
 - Admin pages are marked `noindex` and now ship with basic security headers through `proxy.ts`.
 - Transactional emails now enqueue into the `EmailJob` table and are processed after the response, with retries available through the protected `GET/POST /api/internal/email-jobs/process` route.
 - In production, call that route from cron or an uptime worker with `Authorization: Bearer $EMAIL_JOB_SECRET` so failed email jobs continue draining even when the site is quiet.

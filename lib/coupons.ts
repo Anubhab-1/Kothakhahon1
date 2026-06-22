@@ -55,11 +55,6 @@ export async function consumeCouponForOrder(
         id: options.couponId,
         isActive: true,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        AND: [
-          {
-            OR: [{ maxUses: null }, { usedCount: { lt: tx.coupon.fields.maxUses } }],
-          },
-        ],
       },
       data: {
         usedCount: { increment: 1 },
