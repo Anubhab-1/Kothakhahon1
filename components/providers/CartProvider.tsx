@@ -188,7 +188,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       quantity: safeQuantity,
     });
 
-    toast.success(safeQuantity > 1 ? `Added ${safeQuantity} copies of "${item.title}" to cart` : `Added "${item.title}" to cart`);
+    toast.success("Added to cart");
 
     setItems((current) => {
       const existing = current.find((entry) => entry.bookId === nextItem.bookId);
@@ -217,7 +217,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((current) => {
       const existing = current.find((entry) => entry.bookId === bookId);
       if (existing) {
-        toast.info(`Removed "${existing.title}" from cart`);
+        toast.info("Removed from cart");
       }
       const newItems = current.filter((entry) => entry.bookId !== bookId);
       if (session?.id) {
@@ -234,9 +234,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const existing = current.find((entry) => entry.bookId === bookId);
       if (existing) {
         if (safeQuantity === 0) {
-          toast.info(`Removed "${existing.title}" from cart`);
+          toast.info("Removed from cart");
         } else {
-          toast.success(`Updated "${existing.title}" quantity to ${safeQuantity}`);
+          toast.success("Added to cart");
         }
       }
       const newItems = safeQuantity === 0
@@ -258,7 +258,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [session?.id]);
 
   const clearCart = useCallback(() => {
-    toast.info("Cleared shopping cart");
+    toast.info("Cart cleared");
     setItems([]);
     if (session?.id) {
       fetch("/api/cart", { method: "DELETE" })

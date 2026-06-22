@@ -11,6 +11,7 @@ import { useCart } from "@/components/providers/CartProvider";
 import { getPaymentMethodLabel } from "@/lib/orders";
 import { getShippingQuote } from "@/lib/shipping";
 import { cn, formatINR } from "@/lib/utils";
+import { toast } from "sonner";
 
 const checkoutSchema = z.object({
   fullName: z.string().min(2, "Enter your full name."),
@@ -67,22 +68,16 @@ declare global {
   }
 }
 
-interface CreateOrderRazorpayResponse {
+interface CheckoutApiResponse {
   orderId: string;
-  paymentMethod: "razorpay";
-  razorpayOrderId: string;
-  amount: number;
-  currency: string;
-  key: string;
+  status?: string;
+  razorpayOrderId?: string;
+  amount?: number;
+  currency?: string;
+  key?: string;
+  paymentMethod?: string;
+  redirectUrl?: string;
 }
-
-interface CreateOrderCodResponse {
-  orderId: string;
-  paymentMethod: "cod";
-  redirectUrl: string;
-}
-
-type CreateOrderResponse = CreateOrderRazorpayResponse | CreateOrderCodResponse;
 
 interface DefaultAddress {
   fullName: string;
@@ -367,33 +362,45 @@ export default function CheckoutClient({
 
     setSubmitting(true);
 
-    let createData: CreateOrderResponse;
+    let createData: CheckoutApiResponse;
 
     try {
-      const response = await fetch("/api/checkout/create-order", {
+      const response = await fetch("/api/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
         },
         body: JSON.stringify({
-          shippingAddress: values,
-          paymentMethod: values.paymentMethod,
-          items: items.map((item) => ({
+          cartItems: items.map((item) => ({
             bookId: item.bookId,
             quantity: item.quantity,
+            price: item.price,
           })),
-          couponId: appliedCoupon?.couponId ?? null,
-          saveAddress,
+          customer: {
+            name: values.fullName,
+            email: values.email,
+            phone: values.phone,
+            addressLine1: values.addressLine1,
+            addressLine2: values.addressLine2 || null,
+            city: values.city,
+            state: values.state,
+            postalCode: values.postalCode,
+            country: values.country,
+          },
+          paymentMethod: values.paymentMethod,
+          idempotencyKey: idempotencyKey,
+          couponCode: appliedCoupon?.code ?? null,
         }),
       });
 
-      const body = (await response.json()) as CreateOrderResponse | { error?: string };
+      const body = await response.json();
 
-      if (!response.ok || !("orderId" in body)) {
+      if (!response.ok || !body || !("orderId" in body)) {
         const errorMessage =
-          "error" in body && body.error ? body.error : "Failed to initialize checkout.";
+          body && "error" in body && body.error ? body.error : "Failed to initialize checkout.";
         setSubmitError(errorMessage);
+        toast.error("Failed to place order. Please try again.");
         setSubmitting(false);
         return;
       }
@@ -401,17 +408,21 @@ export default function CheckoutClient({
       createData = body;
     } catch {
       setSubmitError("Network error while creating order. Please try again.");
+      toast.error("Failed to place order. Please try again.");
       setSubmitting(false);
       return;
     }
 
-    if (createData.paymentMethod === "cod") {
+    if (values.paymentMethod === "cod") {
       clearCart();
-      router.push(createData.redirectUrl);
+      toast.success("Order placed successfully. Check your email for confirmation.");
+      router.push(createData.redirectUrl || `/checkout/success?order=${encodeURIComponent(createData.orderId)}`);
       setSubmitting(false);
       return;
     }
 
+    // Razorpay Flow
+    toast.success("Redirecting to payment...");
     const RazorpayCheckout = window.Razorpay;
     if (!RazorpayCheckout) {
       setSubmitError("Payment gateway is not ready yet. Please try again.");
@@ -420,12 +431,12 @@ export default function CheckoutClient({
     }
 
     const checkout = new RazorpayCheckout({
-      key: createData.key,
-      amount: createData.amount,
-      currency: createData.currency,
+      key: createData.key!,
+      amount: createData.amount!,
+      currency: createData.currency!,
       name: "Kothakhahon Prokashoni",
       description: "Book purchase",
-      order_id: createData.razorpayOrderId,
+      order_id: createData.razorpayOrderId!,
       prefill: {
         name: values.fullName,
         email: values.email,
@@ -450,14 +461,17 @@ export default function CheckoutClient({
           });
 
           if (!verifyResponse.ok) {
+            toast.error("Failed to place order. Please try again.");
             router.push(`/checkout/failed?order=${encodeURIComponent(createData.orderId)}`);
             setSubmitting(false);
             return;
           }
 
           clearCart();
+          toast.success("Order placed successfully. Check your email for confirmation.");
           router.push(`/checkout/success?order=${encodeURIComponent(createData.orderId)}`);
         } catch {
+          toast.error("Failed to place order. Please try again.");
           router.push(`/checkout/failed?order=${encodeURIComponent(createData.orderId)}`);
         } finally {
           setSubmitting(false);
@@ -465,6 +479,7 @@ export default function CheckoutClient({
       },
       modal: {
         ondismiss: () => {
+          toast.error("Failed to place order. Please try again.");
           router.push(`/checkout/failed?order=${encodeURIComponent(createData.orderId)}`);
           setSubmitting(false);
         },

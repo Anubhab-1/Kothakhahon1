@@ -480,6 +480,7 @@ model SearchQuery {
 model OrderIdempotency {
   id        String   @id @default(cuid())
   key       String   @unique
+  orderId   String?
   createdAt DateTime @default(now())
   expiresAt DateTime
 }

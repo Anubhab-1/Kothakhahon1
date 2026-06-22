@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
 import { GET as getCart, POST as postCart } from "../app/api/cart/route";
-import { POST as createOrder } from "../app/api/checkout/create-order/route";
+import { POST as createOrder } from "../app/api/checkout/route";
 import { finalizePaidRazorpayOrder } from "../lib/payments";
 import { db } from "../lib/db";
 import type { Prisma } from "../generated/prisma/client";
@@ -80,9 +80,30 @@ describe("Integration Workflows", () => {
       let addressCreated = false;
 
       const mockTx = {
+        orderIdempotency: {
+          findUnique: async () => null,
+          create: async () => ({})
+        },
+        book: {
+          findUnique: async () => ({
+            id: "book-1",
+            slug: "book-one",
+            title: "Book One",
+            price: 300,
+            stockQuantity: 10,
+            lowStockThreshold: 2,
+            stockStatus: "in_stock",
+            author: { name: "Author" }
+          }),
+          update: async () => ({})
+        },
+        orderItem: {
+          createMany: async () => ({ count: 1 })
+        },
         order: {
           create: async ({ data }: any) => ({
             id: "order-1",
+            status: "pending",
             totalAmount: data.totalAmount,
             customerEmail: data.customerEmail,
             items: []
@@ -147,27 +168,29 @@ describe("Integration Workflows", () => {
         writable: true
       });
 
-      const req = new Request("http://localhost/api/checkout/create-order", {
+      const req = new Request("http://localhost/api/checkout", {
         method: "POST",
         body: JSON.stringify({
-          shippingAddress: {
-            fullName: "Jane Doe",
+          cartItems: [{ bookId: "book-1", quantity: 1, price: 300 }],
+          customer: {
+            name: "Jane Doe",
             email: "user@example.com",
             phone: "9876543210",
             addressLine1: "456 Oak Lane",
             city: "Kolkata",
             state: "West Bengal",
             postalCode: "700002",
-            country: "India",
-            shippingMethod: "standard"
+            country: "India"
           },
-          items: [{ bookId: "book-1", quantity: 1 }],
           paymentMethod: "cod",
-          saveAddress: true
+          idempotencyKey: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
         })
       });
 
       const res = await createOrder(req);
+      if (res.status !== 200) {
+        console.log("Error details:", await res.json());
+      }
       assert.strictEqual(res.status, 200);
       assert.strictEqual(addressCreated, true);
 

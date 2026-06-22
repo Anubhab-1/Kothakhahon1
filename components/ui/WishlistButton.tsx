@@ -5,6 +5,7 @@ import { Heart } from "lucide-react";
 import { usePublicSession } from "@/components/auth/PublicSessionProvider";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface WishlistButtonProps {
   bookId: string;
@@ -75,6 +76,7 @@ export default function WishlistButton({ bookId, className }: WishlistButtonProp
         });
         if (res.ok) {
           setIsInWishlist(false);
+          toast.info("Removed from wishlist");
         }
       } else {
         const res = await fetch("/api/wishlist", {
@@ -84,6 +86,7 @@ export default function WishlistButton({ bookId, className }: WishlistButtonProp
         });
         if (res.ok) {
           setIsInWishlist(true);
+          toast.success("Added to wishlist");
         }
       }
     } catch (err) {

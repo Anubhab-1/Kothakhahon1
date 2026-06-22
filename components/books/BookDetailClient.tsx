@@ -66,8 +66,8 @@ export default function BookDetailClient({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
-    const body = JSON.stringify({ viewedAt: Date.now() });
-    const url = `/api/books/${encodeURIComponent(book.slug)}/view`;
+    const body = JSON.stringify({ bookId: book.id });
+    const url = `/api/books/${encodeURIComponent(book.id)}/view`;
 
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
@@ -80,7 +80,7 @@ export default function BookDetailClient({
       headers: { "Content-Type": "application/json" },
       keepalive: true,
     }).catch((err) => console.warn("Failed to log book view:", err));
-  }, [book.slug]);
+  }, [book.id]);
 
   // Sticky buy bar — shows on mobile when main CTA scrolls out of view
   const buyButtonRef = useRef<HTMLDivElement>(null);

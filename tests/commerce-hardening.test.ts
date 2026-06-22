@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { calculateCouponDiscount } from "../lib/coupons";
 import { generateInvoicePdf } from "../lib/invoices";
 import { commitOrderInventory } from "../lib/order-inventory";
-import { POST as bookViewHandler } from "../app/api/books/[slug]/view/route";
+import { POST as bookViewHandler } from "../app/api/books/[id]/view/route";
 import { db } from "../lib/db";
 import type { Prisma } from "../generated/prisma/client";
 
@@ -179,9 +179,9 @@ describe("Commerce Hardening Integration & Logic", () => {
       const originalBook = db.book;
       Object.defineProperty(db, "book", {
         value: {
-          updateMany: async () => {
+          update: async () => {
             viewIncremented = true;
-            return { count: 1 };
+            return {};
           },
         },
         configurable: true,
@@ -196,14 +196,14 @@ describe("Commerce Hardening Integration & Logic", () => {
         }
       });
 
-      const params = Promise.resolve({ slug: "test-book" });
+      const params = Promise.resolve({ id: "test-book" });
 
       try {
         const res = await bookViewHandler(req, { params });
         assert.strictEqual(res.status, 200);
 
         const body = await res.json();
-        assert.deepStrictEqual(body, { tracked: true });
+        assert.deepStrictEqual(body, { success: true });
         assert.strictEqual(viewIncremented, true);
       } finally {
         Object.defineProperty(db, "book", {

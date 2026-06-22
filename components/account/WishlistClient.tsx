@@ -7,6 +7,7 @@ import { Heart, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
 import { useCart } from "@/components/providers/CartProvider";
 import { formatINR } from "@/lib/utils";
 import { motion } from "@/components/ui/StaticMotion";
+import { toast } from "sonner";
 
 interface WishlistItem {
   id: string;
@@ -35,6 +36,7 @@ export default function WishlistClient({ initialItems }: WishlistClientProps) {
       });
       if (res.ok) {
         setItems((current) => current.filter((item) => item.bookId !== bookId));
+        toast.info("Removed from wishlist");
       }
     } catch (err) {
       console.error("Failed to remove item from wishlist:", err);

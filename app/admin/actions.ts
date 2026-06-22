@@ -430,8 +430,28 @@ export async function saveBookAction(formData: FormData) {
     }
 
     // Rebuild PostgreSQL search vector
-    const { updateBookSearchVector } = await import("@/lib/search");
-    await updateBookSearchVector(book.id);
+    const { buildBookSearchVector } = await import("@/lib/search");
+    const bookWithRelations = await db.book.findUnique({
+      where: { id: book.id },
+      include: {
+        author: {
+          select: { name: true },
+        },
+        genres: {
+          include: {
+            genre: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+    });
+    if (bookWithRelations) {
+      await db.book.update({
+        where: { id: book.id },
+        data: { searchVector: buildBookSearchVector(bookWithRelations) },
+      });
+    }
 
     invalidateContentPresenceCache();
     revalidateStorefront();
