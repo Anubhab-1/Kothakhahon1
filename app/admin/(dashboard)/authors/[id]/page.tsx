@@ -18,21 +18,20 @@ export default async function AdminAuthorDetailPage({
   params,
   searchParams,
 }: AdminAuthorDetailPageProps) {
-  const [{ id }, search, author] = await Promise.all([
-    params,
-    searchParams,
-    params.then(({ id: authorId }) =>
-      db.author.findUnique({
-        where: { id: authorId },
-        include: {
-          awards: {
-            orderBy: {
-              position: "asc",
-            },
+  const { id } = await params;
+  const search = await searchParams;
+
+  const [author] = await Promise.all([
+    db.author.findUnique({
+      where: { id },
+      include: {
+        awards: {
+          orderBy: {
+            position: "asc",
           },
         },
-      }),
-    ),
+      },
+    }),
   ]);
 
   if (!author) {

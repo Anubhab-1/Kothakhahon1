@@ -18,29 +18,28 @@ export default async function AdminBookDetailPage({
   params,
   searchParams,
 }: AdminBookDetailPageProps) {
-  const [{ id }, search, authors, book] = await Promise.all([
-    params,
-    searchParams,
+  const { id } = await params;
+  const search = await searchParams;
+
+  const [authors, book] = await Promise.all([
     db.author.findMany({
       orderBy: {
         name: "asc",
       },
     }),
-    params.then(({ id: bookId }) =>
-      db.book.findUnique({
-        where: { id: bookId },
-        include: {
-          genres: {
-            include: {
-              genre: true,
-            },
-            orderBy: {
-              position: "asc",
-            },
+    db.book.findUnique({
+      where: { id },
+      include: {
+        genres: {
+          include: {
+            genre: true,
+          },
+          orderBy: {
+            position: "asc",
           },
         },
-      }),
-    ),
+      },
+    }),
   ]);
 
   if (!book) {

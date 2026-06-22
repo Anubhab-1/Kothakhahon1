@@ -18,19 +18,18 @@ export default async function AdminBlogDetailPage({
   params,
   searchParams,
 }: AdminBlogDetailPageProps) {
-  const [{ id }, search, authors, post] = await Promise.all([
-    params,
-    searchParams,
+  const { id } = await params;
+  const search = await searchParams;
+
+  const [authors, post] = await Promise.all([
     db.author.findMany({
       orderBy: {
         name: "asc",
       },
     }),
-    params.then(({ id: postId }) =>
-      db.blogPost.findUnique({
-        where: { id: postId },
-      }),
-    ),
+    db.blogPost.findUnique({
+      where: { id },
+    }),
   ]);
 
   if (!post) {

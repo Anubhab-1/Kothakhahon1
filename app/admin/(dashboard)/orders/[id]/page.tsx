@@ -24,17 +24,16 @@ export default async function AdminOrderDetailPage({
   params,
   searchParams,
 }: AdminOrderDetailPageProps) {
-  const [{ id }, search, order] = await Promise.all([
-    params,
-    searchParams,
-    params.then(({ id: orderId }) =>
-      db.order.findUnique({
-        where: { id: orderId },
-        include: {
-          items: true,
-        },
-      }),
-    ),
+  const { id } = await params;
+  const search = await searchParams;
+
+  const [order] = await Promise.all([
+    db.order.findUnique({
+      where: { id },
+      include: {
+        items: true,
+      },
+    }),
   ]);
 
   if (!order) {
