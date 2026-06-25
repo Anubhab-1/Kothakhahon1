@@ -92,8 +92,8 @@ export default function HomePageClient({
 
   const newReleases = (nonFeaturedBooks.length >= 4 ? nonFeaturedBooks : sortedBooks).slice(0, 4);
   const affordableFiltered = nonFeaturedBooks.filter((book) => typeof book.price === "number" && book.price < 400);
-  const affordableEditions = (affordableFiltered.length >= 4 
-    ? affordableFiltered 
+  const affordableEditions = (affordableFiltered.length >= 4
+    ? affordableFiltered
     : sortedBooks.filter((book) => typeof book.price === "number" && book.price < 400)
   ).slice(0, 4);
 
@@ -161,11 +161,7 @@ export default function HomePageClient({
               </Link>
             </div>
 
-            <ul className="flex flex-wrap gap-3 font-ui text-[11px] tracking-[0.14em] text-parchment/80" aria-label="Store highlights">
-              <li className="rounded-full border border-smoke/70 px-3 py-1">GUEST CHECKOUT</li>
-              <li className="rounded-full border border-smoke/70 px-3 py-1">COD IN INDIA</li>
-              <li className="rounded-full border border-smoke/70 px-3 py-1">OPEN SUBMISSIONS</li>
-            </ul>
+
           </div>
         </motion.div>
       </section>
